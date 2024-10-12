@@ -14,7 +14,7 @@ from typing import List
 import torch  # pylint: disable=import-error
 
 
-def generate_all_board_features(
+def generate_all_board_features_non_batch(
     board: Board, current_player: Player, roll_result: List[int]
 ) -> torch.Tensor:
     """
