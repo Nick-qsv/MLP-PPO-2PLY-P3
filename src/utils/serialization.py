@@ -2,11 +2,13 @@
 
 import pickle
 from typing import List, Set
-from ..board.board import Board
-from ..players.player import Player
-from ..moves.move_types import SubMove, FullMove
-from ..board.point_state import PointState
+from src.board.board import Board
+from src.players.player import Player
+from src.moves.move_types import SubMove, FullMove
+from src.board.point_state import PointState
 import copy
+
+# todo: add process pool to execute move on board copy.  they do not have to be unique (they already are unique)
 
 
 def execute_move_on_board_copy(

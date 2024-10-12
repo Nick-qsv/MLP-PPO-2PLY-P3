@@ -2,8 +2,9 @@
 
 from dataclasses import dataclass, field
 from typing import List, Dict
-from .point_state import PointState, OwnedState
-from ..players.player import Player
+from .point_state import PointState
+from .owned_state import OwnedState
+from src.players.player import Player
 
 
 @dataclass

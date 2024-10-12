@@ -3,8 +3,10 @@
 import pickle
 from dataclasses import dataclass, field
 from typing import List
-from ..board.board import Board
-from ..players.player import Player
+from src.board.board import Board
+from src.players.player import Player
+from src.board.owned_state import OwnedState
+from src.utils.serialization import process_board
 import copy
 import concurrent.futures
 

@@ -1,6 +1,6 @@
 # backgammon/board/__init__.py
 
-from .board import Board
+from src.board import Board
 from .board_state import BoardState
 from .point_state import PointState
 from .owned_state import OwnedState

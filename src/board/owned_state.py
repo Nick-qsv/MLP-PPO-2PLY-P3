@@ -1,7 +1,7 @@
 # backgammon/board/owned_state.py
 
 from dataclasses import dataclass
-from ..players.player import Player
+from src.players.player import Player
 
 
 @dataclass(frozen=True)
