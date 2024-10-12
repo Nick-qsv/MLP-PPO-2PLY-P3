@@ -1,23 +1,24 @@
 # backgammon/board/board.py
-
-from dataclasses import dataclass, field
-from typing import List, Dict
-from .point_state import PointState
-from .owned_state import OwnedState
 from src.players.player import Player
+import torch  # pylint: disable=import-error
+
+# Mapping from Player to tensor index
+PLAYER_TO_INDEX = {
+    Player.PLAYER1: 0,
+    Player.PLAYER2: 1,
+}
 
 
-@dataclass
 class Board:
-    points: List = field(default_factory=lambda: [PointState.EMPTY] * 24)
-    bar: Dict[Player, int] = field(
-        default_factory=lambda: {Player.PLAYER1: 0, Player.PLAYER2: 0}
-    )
-    borne_off: Dict[Player, int] = field(
-        default_factory=lambda: {Player.PLAYER1: 0, Player.PLAYER2: 0}
-    )
+    def __init__(self):
+        # Initialize tensors for points, bar, and borne_off
+        self.points = torch.zeros((2, 24), dtype=torch.int32)  # Shape: (2, 24)
+        self.bar = torch.zeros(2, dtype=torch.int32)  # Shape: (2,)
+        self.borne_off = torch.zeros(2, dtype=torch.int32)  # Shape: (2,)
+        self.initialize_board()
 
-    def __post_init__(self):
+    def initialize_board(self):
+        # Set up initial positions for both players
         self.set_checkers(Player.PLAYER1, 0, 2)
         self.set_checkers(Player.PLAYER1, 11, 5)
         self.set_checkers(Player.PLAYER1, 16, 3)
@@ -29,135 +30,138 @@ class Board:
         self.set_checkers(Player.PLAYER2, 5, 5)
 
     def set_checkers(self, player: Player, index: int, count: int):
-        self.points[index] = (PointState.OWNED, OwnedState(count, player))
+        player_idx = PLAYER_TO_INDEX[player]
+        self.points[player_idx, index] = count
 
     def add_checker(self, index: int, player: Player):
+        player_idx = PLAYER_TO_INDEX[player]
+        opponent_idx = 1 - player_idx
+
         if not (0 <= index < 24 or index == -2):
             print(f"Attempted to add checker to invalid index {index}.")
             return
+
         if index != -2:
-            point_state = self.points[index]
-            if point_state == PointState.EMPTY:
-                self.points[index] = (PointState.OWNED, OwnedState(1, player))
-            elif point_state[0] == PointState.OWNED:
-                owned_state = point_state[1]
-                if owned_state.player == player:
-                    self.points[index] = (
-                        PointState.OWNED,
-                        OwnedState(owned_state.count + 1, player),
-                    )
-                elif owned_state.count == 1:
-                    # Hit a blot
-                    self.bar[owned_state.player] += 1
-                    self.points[index] = (PointState.OWNED, OwnedState(1, player))
-                else:
-                    print(f"Cannot move to point {index}: blocked by opponent.")
+            opponent_checkers = self.points[opponent_idx, index]
+
+            if opponent_checkers == 0:
+                # No opponent checkers, add to own checkers
+                self.points[player_idx, index] += 1
+            elif opponent_checkers == 1:
+                # Hit a blot
+                self.points[opponent_idx, index] -= 1
+                self.bar[opponent_idx] += 1
+                self.points[player_idx, index] += 1
+            else:
+                # Blocked by opponent
+                print(f"Cannot move to point {index}: blocked by opponent.")
         else:
-            self.borne_off[player] += 1
+            # Bear off
+            self.borne_off[player_idx] += 1
 
     def remove_checker(self, index: int, player: Player):
+        player_idx = PLAYER_TO_INDEX[player]
+
         if not (0 <= index < 24 or index == -1):
             print(f"Attempted to remove checker from invalid index {index}.")
             return
+
         if index != -1:
-            point_state = self.points[index]
-            if point_state == PointState.EMPTY:
-                print(f"No checker to remove at point {index}.")
-            elif point_state[0] == PointState.OWNED:
-                owned_state = point_state[1]
-                if owned_state.player != player:
-                    print(
-                        f"Cannot remove checker: point {index} is owned by the opponent."
-                    )
-                    return
-                if owned_state.count > 1:
-                    self.points[index] = (
-                        PointState.OWNED,
-                        OwnedState(owned_state.count - 1, player),
-                    )
-                else:
-                    self.points[index] = PointState.EMPTY
+            own_checkers = self.points[player_idx, index]
+            if own_checkers > 0:
+                self.points[player_idx, index] -= 1
+            else:
+                print(
+                    f"No checker to remove at point {index} for player {player.name}."
+                )
         else:
-            if self.bar[player] > 0:
-                self.bar[player] -= 1
+            # Remove from bar
+            if self.bar[player_idx] > 0:
+                self.bar[player_idx] -= 1
             else:
                 print("No checkers on the bar to remove.")
 
-    def __eq__(self, other):
-        return (
-            self.points == other.points
-            and self.bar == other.bar
-            and self.borne_off == other.borne_off
-        )
-
-    def __hash__(self):
-        return (
-            hash(tuple(self.points))
-            ^ hash(frozenset(self.bar.items()))
-            ^ hash(frozenset(self.borne_off.items()))
-        )
-
-    def get_board_features(self, current_player: Player) -> List[float]:
+    def get_board_features(self, current_player: Player):
         """
-        - encode each point (24) with 4 units => 4 * 24 = 96
-        - for each player => 96 * 2 = 192
-        - 2 units indicating who is the current player
-        - 2 units for white and black bar checkers
-        - 2 units for white and black off checkers
-        - tot = 192 + 2 + 2 + 2 = 198
+        Generates a feature vector representing the board state.
+        Total features: 198
         """
-        features_vector = []
-        for player in [Player.PLAYER1, Player.PLAYER2]:
-            for point in self.points:
-                if point == PointState.EMPTY:
-                    features_vector += [0.0, 0.0, 0.0, 0.0]
+        features = torch.zeros(198, dtype=torch.float32)
+        feature_index = 0
+
+        for player_idx in [0, 1]:
+            player_points = self.points[player_idx, :]  # Shape: (24,)
+            for point_idx in range(24):
+                checkers = player_points[point_idx].item()
+                if checkers == 0:
+                    features[feature_index : feature_index + 4] = torch.tensor(
+                        [0.0, 0.0, 0.0, 0.0]
+                    )
+                elif checkers == 1:
+                    features[feature_index : feature_index + 4] = torch.tensor(
+                        [1.0, 0.0, 0.0, 0.0]
+                    )
+                elif checkers == 2:
+                    features[feature_index : feature_index + 4] = torch.tensor(
+                        [1.0, 1.0, 0.0, 0.0]
+                    )
+                elif checkers >= 3:
+                    features[feature_index : feature_index + 4] = torch.tensor(
+                        [1.0, 1.0, 1.0, (checkers - 3.0) / 2.0]
+                    )
                 else:
-                    owned_state = point[1]
-                    if owned_state.player == player:
-                        checkers = owned_state.count
-                        if checkers == 1:
-                            features_vector += [1.0, 0.0, 0.0, 0.0]
-                        elif checkers == 2:
-                            features_vector += [1.0, 1.0, 0.0, 0.0]
-                        elif checkers >= 3:
-                            features_vector += [1.0, 1.0, 1.0, (checkers - 3.0) / 2.0]
-                    else:
-                        features_vector += [0.0, 0.0, 0.0, 0.0]
+                    # Negative checkers should not occur
+                    features[feature_index : feature_index + 4] = torch.tensor(
+                        [0.0, 0.0, 0.0, 0.0]
+                    )
+                feature_index += 4
 
-            features_vector += [self.bar[player] / 2.0, self.borne_off[player] / 15.0]
+            # Add bar and borne_off features
+            bar_feature = self.bar[player_idx].item() / 2.0
+            borne_off_feature = self.borne_off[player_idx].item() / 15.0
+            features[feature_index] = bar_feature
+            features[feature_index + 1] = borne_off_feature
+            feature_index += 2
 
+        # Add current player indicator
         if current_player == Player.PLAYER1:
-            features_vector += [1.0, 0.0]
+            features[feature_index] = 1.0
+            features[feature_index + 1] = 0.0
         else:
-            features_vector += [0.0, 1.0]
+            features[feature_index] = 0.0
+            features[feature_index + 1] = 1.0
+        feature_index += 2
 
         assert (
-            len(features_vector) == 198
-        ), f"Should be 198 instead of {len(features_vector)}"
-        return features_vector
+            feature_index == 198
+        ), f"Feature vector length is {feature_index}, expected 198"
+        return features
 
     def print_board(self):
         """
         Prints the board representation.
         """
         board_representation = []
-        for i, point in enumerate(self.points):
-            if point == PointState.EMPTY:
-                board_representation.append(f"Point {i}: Empty")
+        for i in range(24):
+            p1_checkers = self.points[PLAYER_TO_INDEX[Player.PLAYER1], i].item()
+            p2_checkers = self.points[PLAYER_TO_INDEX[Player.PLAYER2], i].item()
+            point_info = f"Point {i}: "
+            if p1_checkers > 0:
+                point_info += f"{p1_checkers} checkers by PLAYER1"
+            elif p2_checkers > 0:
+                point_info += f"{p2_checkers} checkers by PLAYER2"
             else:
-                owned_state = point[1]
-                board_representation.append(
-                    f"Point {i}: {owned_state.count} checkers by {owned_state.player.name}"
-                )
+                point_info += "Empty"
+            board_representation.append(point_info)
         print("\n".join(board_representation))
 
         print("\nBar checkers:")
-        print(f"Player 1: {self.bar[Player.PLAYER1]}")
-        print(f"Player 2: {self.bar[Player.PLAYER2]}")
+        print(f"Player 1: {self.bar[PLAYER_TO_INDEX[Player.PLAYER1]].item()}")
+        print(f"Player 2: {self.bar[PLAYER_TO_INDEX[Player.PLAYER2]].item()}")
 
         print("\nBorne off checkers:")
-        print(f"Player 1: {self.borne_off[Player.PLAYER1]}")
-        print(f"Player 2: {self.borne_off[Player.PLAYER2]}")
+        print(f"Player 1: {self.borne_off[PLAYER_TO_INDEX[Player.PLAYER1]].item()}")
+        print(f"Player 2: {self.borne_off[PLAYER_TO_INDEX[Player.PLAYER2]].item()}")
 
     def test_get_board_features(self, current_player: Player):
         """
@@ -167,20 +171,20 @@ class Board:
         self.print_board()
 
         features = self.get_board_features(current_player)
-
-        print("\nBoard Features Representation:")
         feature_index = 0
-        for player in [Player.PLAYER1, Player.PLAYER2]:
-            print(f"\nFeatures for {player.name}:")
+
+        for player_idx in [0, 1]:
+            player_name = "PLAYER1" if player_idx == 0 else "PLAYER2"
+            print(f"\nFeatures for {player_name}:")
             for point in range(24):
-                feature_slice = features[feature_index : feature_index + 4]
-                print(f"Point {point + 1} ({player.name}): {feature_slice}")
+                feature_slice = features[feature_index : feature_index + 4].tolist()
+                print(f"Point {point + 1} ({player_name}): {feature_slice}")
                 feature_index += 4
-            bar_feature = features[feature_index]
-            borne_off_feature = features[feature_index + 1]
-            print(f"Bar checkers ({player.name}): {bar_feature}")
-            print(f"Borne off checkers ({player.name}): {borne_off_feature}")
+            bar_feature = features[feature_index].item()
+            borne_off_feature = features[feature_index + 1].item()
+            print(f"Bar checkers ({player_name}): {bar_feature}")
+            print(f"Borne off checkers ({player_name}): {borne_off_feature}")
             feature_index += 2
 
-        current_player_feature = features[feature_index : feature_index + 2]
+        current_player_feature = features[feature_index : feature_index + 2].tolist()
         print(f"\nCurrent player feature: {current_player_feature}")
