@@ -57,3 +57,44 @@ def is_valid_entry_at_index(index: int, player: Player, board: Board) -> bool:
                 return False
     else:
         return False
+
+
+def check_for_bar(board: Board, player: Player) -> bool:
+    """
+    Checks if the player has any checkers on the bar.
+    """
+    return board.bar[player] > 0
+
+
+def check_for_win(board: Board, player: Player) -> bool:
+    """
+    Checks if the player has won the game.
+    """
+    return board.borne_off[player] == 15
+
+
+def all_checkers_home(board: Board, player: Player) -> bool:
+    """
+    Checks if all of the player's checkers are in the home board.
+    """
+    # Define the home range for each player
+    home_range = range(0, 6) if player == Player.PLAYER2 else range(18, 24)
+    home_checker_count = 0
+
+    # Iterate through the points on the board
+    for index, point in enumerate(board.points):
+        if isinstance(point, tuple) and point[0] == PointState.OWNED:
+            owned_state = point[1]
+            if owned_state.player == player:
+                if index in home_range:
+                    # Add the number of checkers at this point to the homeCheckerCount
+                    home_checker_count += owned_state.count
+                else:
+                    # If any checker of the current player is found outside the home range, return False
+                    return False
+
+    # Get the count of checkers that are borne off for the current player
+    borne_off_count = board.borne_off.get(player, 0)
+
+    # Check if the sum of checkers in the home range plus the number of checkers borne off equals 15
+    return home_checker_count + borne_off_count == 15

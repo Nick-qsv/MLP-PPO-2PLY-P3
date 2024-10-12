@@ -5,6 +5,8 @@ from ..board.board import Board
 from ..players.player import Player
 from .move_types import SubMove
 from .conditions import valid_move, check_if_blot, is_valid_entry_at_index
+from ..board.board_state import BoardState  # Add this import
+from ..board.point_state import PointState  # Add this import
 
 # Functions originally from the initial code
 
