@@ -10,13 +10,12 @@ def handle_non_doubles(
     board: Board,
     roll: List[int],
     full_moves: List[FullMove],
-    unique_boards: Set[Board],
+    unique_boards: Set[int],
     player: Player,
     reverse: bool = False,
 ):
     dice_order = [roll[1], roll[0]] if reverse else [roll[0], roll[1]]
 
-    # Generate all possible moves for the first die roll
     first_die_moves = get_moves_with_one_die(
         board=board, die_value=dice_order[0], player=player
     )
@@ -45,33 +44,29 @@ def handle_non_doubles(
             board=resulting_board, die_value=dice_order[1], player=player
         )
 
-        # If all second die moves are empty, add the initial move as a full move
         if all_second_die_moves_empty:
-            # Uncomment this to get only unique moves for non-doubles
-            if resulting_board not in unique_boards:
-                unique_boards.add(resulting_board)
-                full_move = FullMove(sub_move_commands=[initial_move], player=player)
-                full_moves.append(full_move)
+            add_unique_board(
+                resulting_board, [initial_move], full_moves, unique_boards, player
+            )
         else:
-            # Apply each second die move and add the combined moves as full moves if the resulting board is unique
             for follow_up_move in second_die_moves:
-                # Uncomment this to get only unique moves for non-doubles
                 board_after_second_move = execute_move_on_board_copy(
                     board=resulting_board, sub_move=follow_up_move, player=player
                 )
-                if board_after_second_move not in unique_boards:
-                    unique_boards.add(board_after_second_move)
-                    full_move = FullMove(
-                        sub_move_commands=[initial_move, follow_up_move], player=player
-                    )
-                    full_moves.append(full_move)
+                add_unique_board(
+                    board_after_second_move,
+                    [initial_move, follow_up_move],
+                    full_moves,
+                    unique_boards,
+                    player,
+                )
 
 
 def handle_doubles(
     board: Board,
     die_value: int,
     full_moves: List[FullMove],
-    unique_boards: Set[Board],
+    unique_boards: Set[int],
     player: Player,
 ):
     single_die_moves = get_moves_with_one_die(board, die_value, player)

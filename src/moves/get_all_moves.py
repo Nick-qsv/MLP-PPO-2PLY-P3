@@ -22,7 +22,7 @@ def get_all_possible_moves(
     """
     full_moves = []
     unique_boards = set()
-    board = copy.copy(board_copy)
+    board = board_copy.copy()  # Use the copy method instead of deepcopy
     roll = roll_result[:]
 
     if roll[0] != roll[1]:
@@ -34,8 +34,6 @@ def get_all_possible_moves(
             unique_boards=unique_boards,
             player=player,
         )
-        # If there is more than 1 full move or 0 full moves, then execute with reversed dice
-        # If there is only 1 full move and 1 submove, then don't execute to ensure that the larger die move is the only valid move.
         if not full_moves or not (
             len(full_moves) == 1 and len(full_moves[0].sub_move_commands) == 1
         ):
