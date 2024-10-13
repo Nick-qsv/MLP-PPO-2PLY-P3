@@ -5,10 +5,13 @@ from typing import List, Set
 from src.board.board import Board
 from src.players.player import Player
 from src.moves.move_types import SubMove, FullMove
-from src.board.point_state import PointState
-import copy
 
 # todo: add process pool to execute move on board copy.  they do not have to be unique (they already are unique)
+
+PLAYER_TO_INDEX = {
+    Player.PLAYER1: 0,
+    Player.PLAYER2: 1,
+}
 
 
 def execute_move_on_board_copy(
@@ -25,52 +28,53 @@ def execute_move_on_board_copy(
     Returns:
     - Board: The new board state after applying the move.
     """
-    board_copy = copy.deepcopy(board)
+    board_copy = board.copy()
     move = sub_move
+    player_idx = PLAYER_TO_INDEX[player]
+    opponent_idx = 1 - player_idx
 
+    # Remove the checker from the start index
     board_copy.remove_checker(move.start_index, player)
 
     if move.hits_blot:
-        opponent = Player.PLAYER2 if player == Player.PLAYER1 else Player.PLAYER1
-        point_state = board_copy.points[move.end_index]
-        if point_state != PointState.EMPTY and point_state[0] == PointState.OWNED:
-            owned_state = point_state[1]
-            if owned_state.player == opponent and owned_state.count == 1:
-                board_copy.points[move.end_index] = PointState.EMPTY
-                board_copy.bar[opponent] += 1
-            else:
-                print("Expected to hit a blot, but conditions were not met.")
-        else:
-            print("Expected to hit a blot, but conditions were not met.")
+        # Remove opponent's checker from the end index and place it on the bar
+        board_copy.points[opponent_idx, move.end_index] -= 1
+        board_copy.bar[opponent_idx] += 1
 
+    # Add the checker to the end index or bear off
     if move.end_index == -2:
-        board_copy.borne_off[player] += 1
+        # Bear off
+        board_copy.borne_off[player_idx] += 1
     else:
         board_copy.add_checker(move.end_index, player)
 
     return board_copy
 
 
+def board_hash(board: Board) -> int:
+    """
+    Generates a hashable representation of the board.
+    """
+    return hash(
+        (
+            tuple(board.points.view(-1).tolist()),
+            tuple(board.bar.tolist()),
+            tuple(board.borne_off.tolist()),
+        )
+    )
+
+
 def add_unique_board(
     board: Board,
     moves: List[SubMove],
     full_moves: List[FullMove],
-    unique_boards: Set[Board],
+    unique_boards: Set[int],
     player: Player,
 ):
-    """
-    Adds a unique board state to the set of unique boards and appends the corresponding full move.
-
-    Parameters:
-    - board (Board): The new board state.
-    - moves (List[SubMove]): The sequence of sub-moves leading to this state.
-    - full_moves (List[FullMove]): The list to append the new full move to.
-    - unique_boards (Set[Board]): The set of unique board states.
-    - player (Player): The player making the move.
-    """
-    if board not in unique_boards:
-        unique_boards.add(board)
-        full_move = FullMove(sub_move_commands=moves, player=player)
+    board_h = board_hash(board)
+    if board_h not in unique_boards:
+        unique_boards.add(board_h)
+        full_move = FullMove(sub_move_commands=moves.copy(), player=player)
         full_moves.append(full_move)
 
 

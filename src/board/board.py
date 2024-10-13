@@ -29,6 +29,13 @@ class Board:
         self.set_checkers(Player.PLAYER2, 7, 3)
         self.set_checkers(Player.PLAYER2, 5, 5)
 
+    def copy(self) -> "Board":
+        new_board = Board()
+        new_board.points = self.points.clone()
+        new_board.bar = self.bar.clone()
+        new_board.borne_off = self.borne_off.clone()
+        return new_board
+
     def set_checkers(self, player: Player, index: int, count: int):
         player_idx = PLAYER_TO_INDEX[player]
         self.points[player_idx, index] = count
