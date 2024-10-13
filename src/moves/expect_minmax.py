@@ -9,7 +9,7 @@ from src.players.player import Player
 from src.moves.move_types import SubMove, FullMove
 from src.moves.get_all_moves import get_all_possible_moves
 from src.utils.serialization import execute_move_on_board_copy
-from src.moves.get_all_dice_rolls import get_all_dice_rolls
+from src.moves.get_all_dice_rolls import get_all_dice_rolls_tensor
 
 # from src.utils.dice import get_all_dice_rolls
 
@@ -59,7 +59,7 @@ def expectiminimax_alpha_beta(
     if maximizing_player:
         max_eval = float("-inf")
         # Generate all possible dice rolls
-        dice_rolls, dice_probs = get_all_dice_rolls()
+        dice_rolls, dice_probs = get_all_dice_rolls_tensor()
         for dice, prob in zip(dice_rolls, dice_probs):
             # Generate all possible moves for current_player given the dice roll
             possible_moves = get_all_possible_moves(
@@ -104,7 +104,7 @@ def expectiminimax_alpha_beta(
             Player.PLAYER2 if current_player == Player.PLAYER1 else Player.PLAYER1
         )
         # Generate all possible dice rolls for opponent
-        dice_rolls, dice_probs = get_all_dice_rolls()
+        dice_rolls, dice_probs = get_all_dice_rolls_tensor()
         for dice, prob in zip(dice_rolls, dice_probs):
             # Generate all possible moves for opponent given the dice roll
             possible_moves = get_all_possible_moves(
@@ -161,7 +161,7 @@ def choose_best_move(board: Board, current_player: Player) -> FullMove:
 
     # Assume dice roll is already determined; if not, integrate dice rolls here
     # For simplicity, we'll iterate over all possible dice rolls and average the results
-    dice_rolls, dice_probs = get_all_dice_rolls()
+    dice_rolls, dice_probs = get_all_dice_rolls_tensor()
 
     for dice, prob in zip(dice_rolls, dice_probs):
         possible_moves = get_all_possible_moves(
