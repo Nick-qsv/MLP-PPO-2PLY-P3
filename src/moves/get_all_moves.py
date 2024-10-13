@@ -22,7 +22,7 @@ def get_all_possible_moves(
     """
     full_moves = []
     unique_boards = set()
-    board = board_copy.copy()  # Use the copy method instead of deepcopy
+    board = board_copy.copy()
     roll = roll_result[:]
 
     if roll[0] != roll[1]:

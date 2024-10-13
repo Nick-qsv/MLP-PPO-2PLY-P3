@@ -7,54 +7,48 @@ from src.board.point_state import PointState
 
 NUMBER_OF_POINTS = 24
 
+PLAYER_TO_INDEX = {
+    Player.PLAYER1: 0,
+    Player.PLAYER2: 1,
+}
+
 
 def valid_move(destination_idx: int, player: Player, board: Board) -> bool:
+    player_idx = PLAYER_TO_INDEX[player]
+    opponent_idx = 1 - player_idx
+
     if 0 <= destination_idx < NUMBER_OF_POINTS:
-        dest_state = board.points[destination_idx]
-        if dest_state == PointState.EMPTY:
+        opponent_checkers = board.points[opponent_idx, destination_idx].item()
+        if opponent_checkers >= 2:
+            return False
+        else:
             return True
-        elif dest_state[0] == PointState.OWNED:
-            owned_state = dest_state[1]
-            if owned_state.player == player:
-                return True
-            elif owned_state.count == 1:
-                return True  # You can hit a blot
-            else:
-                return False
+    elif destination_idx == -2:
+        # Bearing off
+        return True
     else:
         return False
 
 
 def check_if_blot(index: int, player: Player, board: Board) -> bool:
+    opponent_idx = 1 - PLAYER_TO_INDEX[player]
+
     if 0 <= index < NUMBER_OF_POINTS:
-        point = board.points[index]
-        if point == PointState.EMPTY:
-            return False
-        elif point[0] == PointState.OWNED:
-            owned_state = point[1]
-            if owned_state.player == player:
-                return False
-            elif owned_state.count == 1:
-                return True  # It's a blot
-            else:
-                return False
-    else:
-        return False
+        opponent_checkers = board.points[opponent_idx, index].item()
+        if opponent_checkers == 1:
+            return True
+    return False
 
 
 def is_valid_entry_at_index(index: int, player: Player, board: Board) -> bool:
+    opponent_idx = 1 - PLAYER_TO_INDEX[player]
+
     if 0 <= index < NUMBER_OF_POINTS:
-        point = board.points[index]
-        if point == PointState.EMPTY:
+        opponent_checkers = board.points[opponent_idx, index].item()
+        if opponent_checkers >= 2:
+            return False
+        else:
             return True
-        elif point[0] == PointState.OWNED:
-            owned_state = point[1]
-            if owned_state.player == player:
-                return True
-            elif owned_state.count == 1:
-                return True  # You can hit a blot
-            else:
-                return False
     else:
         return False
 
