@@ -54,41 +54,34 @@ def is_valid_entry_at_index(index: int, player: Player, board: Board) -> bool:
 
 
 def check_for_bar(board: Board, player: Player) -> bool:
-    """
-    Checks if the player has any checkers on the bar.
-    """
-    return board.bar[player] > 0
+    player_idx = PLAYER_TO_INDEX[player]
+    return board.bar[player_idx].item() > 0
 
 
 def check_for_win(board: Board, player: Player) -> bool:
-    """
-    Checks if the player has won the game.
-    """
-    return board.borne_off[player] == 15
+    player_idx = PLAYER_TO_INDEX[player]
+    return board.borne_off[player_idx].item() == 15
 
 
 def all_checkers_home(board: Board, player: Player) -> bool:
-    """
-    Checks if all of the player's checkers are in the home board.
-    """
-    # Define the home range for each player
     home_range = range(0, 6) if player == Player.PLAYER2 else range(18, 24)
-    home_checker_count = 0
+    player_idx = PLAYER_TO_INDEX[player]
+    total_checkers = 0
 
-    # Iterate through the points on the board
-    for index, point in enumerate(board.points):
-        if isinstance(point, tuple) and point[0] == PointState.OWNED:
-            owned_state = point[1]
-            if owned_state.player == player:
-                if index in home_range:
-                    # Add the number of checkers at this point to the homeCheckerCount
-                    home_checker_count += owned_state.count
-                else:
-                    # If any checker of the current player is found outside the home range, return False
-                    return False
+    for idx in range(NUMBER_OF_POINTS):
+        num_checkers = board.points[player_idx, idx].item()
+        if num_checkers > 0:
+            if idx in home_range:
+                total_checkers += num_checkers
+            else:
+                return False  # Checker outside home board
 
-    # Get the count of checkers that are borne off for the current player
-    borne_off_count = board.borne_off.get(player, 0)
+    # Check for any checkers on the bar
+    if board.bar[player_idx].item() > 0:
+        return False
 
-    # Check if the sum of checkers in the home range plus the number of checkers borne off equals 15
-    return home_checker_count + borne_off_count == 15
+    # Include borne off checkers
+    borne_off_checkers = board.borne_off[player_idx].item()
+
+    # Check if total checkers (home + borne off) == 15
+    return total_checkers + borne_off_checkers == 15

@@ -5,10 +5,6 @@ from src.board.board_class import Board
 from src.players.player import Player
 from src.moves.get_all_moves import get_all_possible_moves
 
-import sys
-
-print(sys.path)
-
 
 # Mapping from Player to tensor index
 PLAYER_TO_INDEX = {

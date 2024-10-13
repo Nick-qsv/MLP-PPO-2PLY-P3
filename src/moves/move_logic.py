@@ -151,6 +151,9 @@ def get_moves_bear_off(board: Board, die_value: int, player: Player) -> List[Sub
 
 
 def compute_board_state(board: Board, player: Player) -> "BoardState":
+    """
+    Computes the current state of the board for the given player.
+    """
     if check_for_win(board, player):
         return BoardState.GAME_OVER
     if check_for_bar(board, player):
