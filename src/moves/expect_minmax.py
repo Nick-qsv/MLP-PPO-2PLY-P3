@@ -4,7 +4,7 @@ import torch  # pylint: disable=import-error
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from collections import defaultdict
-from src.board.board import Board
+from src.board.board_class import Board
 from src.players.player import Player
 from src.moves.move_types import SubMove, FullMove
 from src.moves.get_all_moves import get_all_possible_moves

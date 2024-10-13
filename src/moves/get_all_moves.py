@@ -1,6 +1,6 @@
 import copy
 from typing import List
-from src.board.board import Board
+from src.board.board_class import Board
 from src.moves.move_types import FullMove
 from src.players.player import Player
 from src.moves.handle_moves import handle_non_doubles, handle_doubles

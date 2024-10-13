@@ -4,7 +4,7 @@
 from .move_generation import get_all_possible_moves
 
 # Import from parent directory modules
-from src.board.board import Board
+from src.board.board_class import Board
 from src.players.player import Player
 from src.moves.move_types import FullMove
 from src.utils.serialization import execute_move_on_board_copy

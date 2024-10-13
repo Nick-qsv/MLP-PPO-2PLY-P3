@@ -1,6 +1,6 @@
 import torch  # pylint: disable=import-error
 from typing import List
-from src.board.board import Board
+from src.board.board_class import Board
 from src.players.player import Player
 from src.moves.move_types import FullMove
 from src.moves.get_all_moves import get_all_possible_moves

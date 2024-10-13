@@ -1,7 +1,7 @@
 # backgammon/moves/conditions.py
 
 from typing import List
-from src.board.board import Board
+from src.board.board_class import Board
 from src.players.player import Player
 from src.board.point_state import PointState
 

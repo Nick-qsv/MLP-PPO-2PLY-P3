@@ -1,7 +1,7 @@
 # backgammon/moves/move_logic.py
 
 from typing import List
-from src.board.board import Board
+from src.board.board_class import Board
 from src.players.player import Player
 from src.moves.move_types import SubMove
 from .conditions import (
@@ -59,7 +59,6 @@ def get_moves_normal(board: Board, die_value: int, player: Player) -> List[SubMo
 def get_moves_bar(board: Board, die_value: int, player: Player) -> List[SubMove]:
     moves = []
     number_of_points = 24
-    player_idx = PLAYER_TO_INDEX[player]
 
     if player == Player.PLAYER1:
         dest_idx = die_value - 1
@@ -78,7 +77,6 @@ def get_moves_bar(board: Board, die_value: int, player: Player) -> List[SubMove]
 
 def get_moves_bear_off(board: Board, die_value: int, player: Player) -> List[SubMove]:
     move_set = []
-    number_of_points = 24
     player_idx = PLAYER_TO_INDEX[player]
 
     if player == Player.PLAYER1:
