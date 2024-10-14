@@ -6,7 +6,9 @@ from src.board.board_class import Board
 from src.players.player import Player
 from src.utils.serialization import execute_move_on_board_copy
 from src.moves.get_all_moves import get_all_possible_moves
-from src.ai.batching import generate_all_board_features
+from src.ai.batching import (
+    apply_moves_and_get_features_in_batch,
+)
 
 PLAYER_TO_INDEX = {
     Player.PLAYER1: 0,
@@ -36,7 +38,7 @@ TOKEN = {
 class BackgammonEnv(gym.Env):
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, match_length=5, max_legal_moves=500):
+    def __init__(self, match_length=15, max_legal_moves=500):
         super(BackgammonEnv, self).__init__()
 
         self.match_length = match_length
@@ -64,9 +66,9 @@ class BackgammonEnv(gym.Env):
 
         # Variables for dice roll and legal moves
         self.roll_result = None
-        self.legal_moves = []
         self.action_mask = np.zeros(self.max_legal_moves, dtype=np.float32)
         self.legal_board_features = None  # Tensor of possible next board features
+        self.legal_moves = []  # List of FullMove objects
 
     def reset(self):
         if self.match_over:
@@ -133,8 +135,11 @@ class BackgammonEnv(gym.Env):
             observation = self.get_observation()
             return observation, reward, done, {"info": "Invalid action"}
 
-        # Execute the Selected Move by updating the board to the corresponding legal_board_features
-        self.board = self.legal_board_features[action]
+        # Execute the Selected Move by applying the corresponding FullMove
+        selected_move = self.legal_moves[action]
+        self.board = execute_move_on_board_copy(
+            self.board, selected_move, self.current_player
+        )
 
         # Check for game over
         if self.board.borne_off[PLAYER_TO_INDEX[self.current_player]] == 15:
@@ -167,7 +172,6 @@ class BackgammonEnv(gym.Env):
             info = {}
             reward = 0.0
             done = False
-            # Removed hit rewards
             # Pass the turn to the other player
             self.pass_turn()
             self.roll_dice()
@@ -182,16 +186,27 @@ class BackgammonEnv(gym.Env):
         return board_features.numpy()
 
     def update_legal_moves(self):
-        # Generate legal board features for the action mask
-        self.legal_board_features = generate_all_board_features(
-            self.board, self.current_player, self.roll_result
+        # Generate legal moves
+        self.legal_moves = get_all_possible_moves(
+            player=self.current_player,
+            board_copy=self.board,
+            roll_result=self.roll_result,
         )
+
+        # Generate legal board features for the action mask
+        if self.legal_moves:
+            self.legal_board_features = apply_moves_and_get_features_in_batch(
+                self.board, self.legal_moves, self.current_player
+            )
+        else:
+            self.legal_board_features = torch.empty((0, 198), dtype=torch.float32)
 
         num_moves = self.legal_board_features.size(0)
         if num_moves > self.max_legal_moves:
             self.legal_board_features = self.legal_board_features[
                 : self.max_legal_moves, :
             ]
+            self.legal_moves = self.legal_moves[: self.max_legal_moves]
 
         num_moves = self.legal_board_features.size(0)
         self.action_mask = np.zeros(self.max_legal_moves, dtype=np.float32)

@@ -3,7 +3,7 @@ from src.environment.backgammon_env import BackgammonEnv
 
 
 class VectorizedBackgammonEnv:
-    def __init__(self, num_envs=100, match_length=5, max_legal_moves=500):
+    def __init__(self, num_envs=50, match_length=15, max_legal_moves=500):
         self.num_envs = num_envs
         self.envs = [
             BackgammonEnv(match_length, max_legal_moves) for _ in range(num_envs)
