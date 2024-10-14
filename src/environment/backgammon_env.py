@@ -133,18 +133,8 @@ class BackgammonEnv(gym.Env):
             observation = self.get_observation()
             return observation, reward, done, {"info": "Invalid action"}
 
-        # Execute the selected move
-        selected_move = self.legal_moves[action]
-
-        # Calculate hit rewards based on sub_moves
-        hits = sum(
-            1 for sub_move in selected_move.sub_move_commands if sub_move.hits_blot
-        )
-
-        for sub_move in selected_move.sub_move_commands:
-            self.board = execute_move_on_board_copy(
-                self.board, sub_move, self.current_player
-            )
+        # Execute the Selected Move by updating the board to the corresponding legal_board_features
+        self.board = self.legal_board_features[action]
 
         # Check for game over
         if self.board.borne_off[PLAYER_TO_INDEX[self.current_player]] == 15:
@@ -177,12 +167,7 @@ class BackgammonEnv(gym.Env):
             info = {}
             reward = 0.0
             done = False
-            # Add hit rewards
-            if hits > 0:
-                hit_reward = REWARD_HIT * hits
-                reward += hit_reward
-                info["hit_reward"] = hit_reward
-
+            # Removed hit rewards
             # Pass the turn to the other player
             self.pass_turn()
             self.roll_dice()
@@ -197,21 +182,20 @@ class BackgammonEnv(gym.Env):
         return board_features.numpy()
 
     def update_legal_moves(self):
-        self.legal_moves = get_all_possible_moves(
-            self.current_player, self.board, self.roll_result
-        )
-
-        if len(self.legal_moves) > self.max_legal_moves:
-            self.legal_moves = self.legal_moves[: self.max_legal_moves]
-
-        num_moves = len(self.legal_moves)
-        self.action_mask = np.zeros(self.max_legal_moves, dtype=np.float32)
-        self.action_mask[:num_moves] = 1.0
-
         # Generate legal board features for the action mask
         self.legal_board_features = generate_all_board_features(
             self.board, self.current_player, self.roll_result
         )
+
+        num_moves = self.legal_board_features.size(0)
+        if num_moves > self.max_legal_moves:
+            self.legal_board_features = self.legal_board_features[
+                : self.max_legal_moves, :
+            ]
+
+        num_moves = self.legal_board_features.size(0)
+        self.action_mask = np.zeros(self.max_legal_moves, dtype=np.float32)
+        self.action_mask[:num_moves] = 1.0
 
         # If there are fewer moves than max_legal_moves, pad the features
         if num_moves < self.max_legal_moves:
