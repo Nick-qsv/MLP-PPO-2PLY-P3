@@ -20,36 +20,40 @@ class BackgammonPolicyNetwork(nn.Module):
             A single fully connected layer with a specified number of neurons
             and ReLU activation.
         - Output Layer:
-            Outputs a scalar logit for each input board state.
+            Outputs logits for each possible action.
 
     Parameters:
         input_size (int): The size of the input feature vector.
                           Default is 198, corresponding to the board state representation.
         hidden_size (int): The number of neurons in the hidden fully connected layer.
                            Default is 128.
+        action_size (int): The number of possible actions.
 
     Attributes:
         fc1 (nn.Linear): The first fully connected layer mapping inputs to hidden representations.
-        fc2 (nn.Linear): The second fully connected layer mapping hidden representations to output logits.
+        action_head (nn.Linear): The fully connected layer mapping hidden representations to action logits.
+        value_head (nn.Linear): The fully connected layer mapping hidden representations to state value estimates.
 
     Example:
-        >>> model = BackgammonPolicyNetwork()
+        >>> model = BackgammonPolicyNetwork(input_size=198, hidden_size=128, action_size=10)
         >>> board_features = torch.randn(32, 198)  # Batch of 32 board states
-        >>> logits = model(board_features)
-        >>> probabilities = F.softmax(logits, dim=-1)  # Convert logits to probabilities
+        >>> logits, state_values = model(board_features)
+        >>> action_probs = F.softmax(logits, dim=-1)  # Convert logits to probabilities
     """
 
-    def __init__(self, input_size=198, hidden_size=128):
+    def __init__(self, input_size=198, hidden_size=128, action_size=500):
         """
         Initializes the BackgammonPolicyNetwork.
 
         Args:
             input_size (int, optional): Size of the input feature vector. Default is 198.
             hidden_size (int, optional): Number of neurons in the hidden layer. Default is 128.
+            action_size (int): Number of possible actions.
         """
         super(BackgammonPolicyNetwork, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, 1)  # Outputs a scalar value (logit)
+        self.action_head = nn.Linear(hidden_size, action_size)
+        self.value_head = nn.Linear(hidden_size, 1)
 
     def forward(self, x):
         """
@@ -60,10 +64,12 @@ class BackgammonPolicyNetwork(nn.Module):
                               Shape: (batch_size, 198)
 
         Returns:
-            torch.Tensor: Output tensor containing logits for each board state.
-                          Shape: (batch_size,)
-
+            logits (torch.Tensor): Tensor containing logits for each possible action.
+                                   Shape: (batch_size, action_size)
+            state_values (torch.Tensor): Tensor containing state value estimates.
+                                   Shape: (batch_size,)
         """
         x = F.relu(self.fc1(x))  # Hidden layer with ReLU activation
-        x = self.fc2(x)  # Output layer without activation
-        return x.squeeze(-1)  # Remove last dimension if output shape is (N, 1)
+        logits = self.action_head(x)  # Action logits
+        state_values = self.value_head(x).squeeze(-1)  # State value estimates
+        return logits, state_values

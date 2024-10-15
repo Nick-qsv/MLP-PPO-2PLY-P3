@@ -1,5 +1,3 @@
-# main.py
-
 import torch
 from datetime import datetime
 from bg_environment import BackgammonEnv
@@ -34,7 +32,6 @@ if __name__ == "__main__":
     # Initialize the agent
     agent = PPOAgent(
         board_feature_size=198,
-        move_feature_size=MOVE_FEATURE_LENGTH,
         hidden_size=HIDDEN_SIZE,
         action_size=ACTION_SIZE,
         entropy_coef_start=ENTROPY_COEF_START,

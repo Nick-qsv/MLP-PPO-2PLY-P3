@@ -1,5 +1,3 @@
-# config.py
-
 import os
 
 # Hyperparameters
