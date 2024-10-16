@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Define the Docker image name and tag
-IMAGE_NAME="backgammon_ai_rl_ppoagent"
+IMAGE_NAME="mlp_ppo_v1"
 IMAGE_TAG="latest"
 
 # Define the test script path inside the container
-TEST_SCRIPT="/app/test_env.py"
+TEST_SCRIPT="./src/testing/test_env.py"
 
 # Run the Docker container and execute the test script
 echo "Running tests inside the Docker container..."

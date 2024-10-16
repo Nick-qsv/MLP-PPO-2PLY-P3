@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the Docker image name and tag
-IMAGE_NAME="backgammon_ai_rl_ppoagent"
+IMAGE_NAME="mlp_ppo_v1"
 IMAGE_TAG="latest"
 
 # Build the Docker image

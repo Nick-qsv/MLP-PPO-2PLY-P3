@@ -1,4 +1,5 @@
 import subprocess
+from .test_env import main as test_env
 
 
 def build():
@@ -13,4 +14,4 @@ def run_tests():
     return result.stdout  # Return the output of the script
 
 
-__all__ = ["build", "run_tests"]
+__all__ = ["build", "run_tests", "test_env", "main"]
