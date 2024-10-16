@@ -10,7 +10,7 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 from torch.amp import autocast, GradScaler
-from torch.utils.tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 from torch.distributions import Categorical
 from src.agent.policy_network import BackgammonPolicyNetwork
 from src.agent.config import (
@@ -25,6 +25,9 @@ from src.agent.config import (
     ENTROPY_ANNEAL_EPISODES,
 )
 from datetime import datetime  # pylint: disable=import-error
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
 
 # Save the original RecordWriter
 original_RecordWriter = record_writer.RecordWriter

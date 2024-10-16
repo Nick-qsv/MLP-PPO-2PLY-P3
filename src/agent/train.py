@@ -124,7 +124,7 @@ if __name__ == "__main__":
     total_steps = 0
 
     # Optionally load a saved model
-    agent.load_model(filename="ppo_backgammon_s3.pth", from_s3=True)
+    # agent.load_model(filename="ppo_backgammon_s3.pth", from_s3=True)
 
     # Set agent to training mode
     agent.set_training_mode(training=True)

@@ -1,0 +1,23 @@
+# Exclude the virtual environment
+myenv/
+
+# Exclude Dockerfile and .dockerignore themselves
+Dockerfile
+.dockerignore
+
+# Exclude Python cache files
+*.pyc
+__pycache__/
+
+# Exclude other unnecessary files
+*.pyo
+*.pyd
+.DS_Store
+.env
+*.log
+
+# Exclude non-Python files
+ppo_backgammon.mlpackage/
+runs/
+coreML/
+
