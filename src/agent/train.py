@@ -1,11 +1,16 @@
 import torch
 import numpy as np
-import os
 import boto3
+import sys
+import os
+
+# Add the parent directory of src to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
 from botocore.config import Config
 from tqdm import tqdm  # For progress bar
 from config import *
-from src.environment.vec_bg_env import VectorizedBackgammonEnv
+from src.environment import VectorizedBackgammonEnv
 from ppo_agent import BackgammonPPOAgent
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

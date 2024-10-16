@@ -8,7 +8,7 @@ from src.board.board_class import Board
 from src.players.player import Player
 from src.moves.move_types import SubMove, FullMove
 from src.moves.get_all_moves import get_all_possible_moves
-from src.utils.serialization import execute_move_on_board_copy
+from src.moves.handle_moves import execute_move_on_board_copy
 from src.moves.get_all_dice_rolls import get_all_dice_rolls_tensor
 
 # from src.utils.dice import get_all_dice_rolls

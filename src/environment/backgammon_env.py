@@ -4,7 +4,7 @@ import torch
 from gym import spaces
 from src.board.board_class import Board
 from src.players.player import Player
-from src.utils.serialization import execute_move_on_board_copy
+from src.moves.handle_moves import execute_move_on_board_copy
 from src.moves.get_all_moves import get_all_possible_moves
 from src.ai.batching import (
     apply_moves_and_get_features_in_batch,

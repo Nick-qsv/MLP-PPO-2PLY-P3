@@ -1,6 +1,6 @@
-import torch  # pylint: disable=import-error
-import torch.nn as nn  # pylint: disable=import-error
-import torch.nn.functional as F  # pylint: disable=import-error
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 
 class BackgammonPolicyNetwork(nn.Module):
