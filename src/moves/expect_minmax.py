@@ -200,7 +200,7 @@ def choose_best_move(board: Board, current_player: Player) -> FullMove:
 
 # Example usage:
 if __name__ == "__main__":
-    initial_board = Board()
+    initial_board = Board(device="cuda")
     current_player = Player.PLAYER1
     best_move = choose_best_move(initial_board, current_player)
     print(f"Best Move: {best_move}")

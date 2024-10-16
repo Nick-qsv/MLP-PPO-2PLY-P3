@@ -21,31 +21,22 @@ def train_agent():
     global total_episodes, total_steps
     recent_rewards = []
     recent_wins = []
-    episode_rewards = np.zeros(NUM_ENVS)
-    episode_lengths = np.zeros(NUM_ENVS)
+    episode_rewards = torch.zeros(NUM_ENVS, device=device)
+    episode_lengths = torch.zeros(NUM_ENVS, device=device)
 
     for update in tqdm(range(NUM_UPDATES), desc="Training Progress"):
-        observations = envs.reset()  # Shape: (NUM_ENVS, 198)
+        observations = envs.reset()  # Already a tensor on device
         agent.memory = []  # Clear memory at the start of each update
 
         for step in range(T_HORIZON):
             # Get action masks
-            action_masks = envs.get_action_masks()  # Shape: (NUM_ENVS, max_legal_moves)
-            observations_tensor = torch.tensor(
-                observations, dtype=torch.float32, device=device
-            )
-            action_masks_tensor = torch.tensor(
-                action_masks, dtype=torch.float32, device=device
-            )
+            action_masks = envs.get_action_masks()  # Already a tensor on device
 
             # Get actions from agent
-            actions = agent.select_action(observations_tensor, action_masks_tensor)
-            # actions is a numpy array of shape (NUM_ENVS,)
+            actions = agent.select_action(observations, action_masks)
 
             # Step the environment
             next_observations, rewards, dones, infos = envs.step(actions)
-            rewards_tensor = torch.tensor(rewards, dtype=torch.float32, device=device)
-            dones_tensor = torch.tensor(dones, dtype=torch.float32, device=device)
 
             # Update per-environment episode rewards and lengths
             episode_rewards += rewards
@@ -53,17 +44,18 @@ def train_agent():
 
             # Store rewards and dones in agent's memory
             for i in range(NUM_ENVS):
-                agent.memory[-NUM_ENVS + i]["reward"] = rewards_tensor[i].unsqueeze(0)
-                agent.memory[-NUM_ENVS + i]["done"] = dones_tensor[i].unsqueeze(0)
+                agent.memory[-NUM_ENVS + i]["reward"] = rewards[i].unsqueeze(0)
+                agent.memory[-NUM_ENVS + i]["done"] = dones[i].unsqueeze(0)
 
             observations = next_observations
             total_steps += NUM_ENVS
 
+            # Handle episodes ending
             for i in range(NUM_ENVS):
                 if dones[i]:
                     total_episodes += 1
                     # Record the episode reward and win
-                    recent_rewards.append(episode_rewards[i])
+                    recent_rewards.append(episode_rewards[i].item())
                     info = infos[i]
                     if "winner" in info and info["winner"] == agent.current_player:
                         recent_wins.append(1)
@@ -74,7 +66,7 @@ def train_agent():
                     episode_rewards[i] = 0
                     episode_lengths[i] = 0
 
-                    # Every 1,000 episodes, call agent.log_metrics
+                    # Log metrics every 1000 episodes
                     if total_episodes % 1000 == 0:
                         avg_reward = np.mean(recent_rewards[-1000:])
                         win_rate = np.mean(recent_wins[-1000:])
@@ -93,11 +85,10 @@ def train_agent():
         agent.writer.add_scalar("Stats/Total Steps", total_steps, update)
         agent.writer.add_scalar("Stats/Entropy Coefficient", agent.entropy_coef, update)
 
-        # Save model periodically (e.g., every 50 updates)
+        # Save model periodically
         if update % 50 == 0 and update > 0:
             filename = f"backgammon_ppo_update_{update}.pth"
             agent.save_model(filename=filename, to_s3=True)
-            # Also save a copy with a standard filename for loading later
             agent.save_model(filename="ppo_backgammon_s3.pth", to_s3=True)
 
     # Close environments and writer

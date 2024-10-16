@@ -20,6 +20,8 @@ TOKEN = {
     Player.PLAYER2: "○",  # Example token for Player 2
 }
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 # Reward Variables (Configurable)
 REWARD_INVALID_ACTION = -1.0
 REWARD_PASS = 0.0
@@ -38,14 +40,17 @@ TOKEN = {
 class BackgammonEnv(gym.Env):
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, match_length=15, max_legal_moves=500):
+    def __init__(self, match_length=15, max_legal_moves=500, device=None):
         super(BackgammonEnv, self).__init__()
 
         self.match_length = match_length
         self.player_scores = {Player.PLAYER1: 0, Player.PLAYER2: 0}
         self.current_match_winner = None
 
-        self.board = Board()
+        # Set the device
+        self.device = device if device is not None else torch.device("cpu")
+
+        self.board = Board(device=self.device)
         self.current_player = Player.PLAYER1
         self.game_over = False
         self.match_over = False
@@ -66,7 +71,9 @@ class BackgammonEnv(gym.Env):
 
         # Variables for dice roll and legal moves
         self.roll_result = None
-        self.action_mask = np.zeros(self.max_legal_moves, dtype=np.float32)
+        self.action_mask = torch.zeros(
+            self.max_legal_moves, dtype=torch.float32, device=self.device
+        )
         self.legal_board_features = None  # Tensor of possible next board features
         self.legal_moves = []  # List of FullMove objects
 
@@ -77,7 +84,7 @@ class BackgammonEnv(gym.Env):
             self.current_match_winner = None
 
         # Reset the board
-        self.board = Board()
+        self.board = Board(device=self.device)
         self.game_over = False
 
         # Alternate starting player
@@ -110,12 +117,12 @@ class BackgammonEnv(gym.Env):
     def step(self, action):
         if self.game_over:
             observation = self.reset()
-            return observation, 0.0, True, {}
+            return observation, torch.tensor(0.0, device=self.device), True, {}
 
         # Check if there are any legal actions
         if self.action_mask.sum() == 0:
             # No legal actions, pass the turn to the next player
-            reward = REWARD_PASS
+            reward = torch.tensor(REWARD_PASS, device=self.device)
             done = False
             # Pass the turn
             self.pass_turn()
@@ -129,7 +136,7 @@ class BackgammonEnv(gym.Env):
         # Validate action
         if not self.action_mask[action]:
             # Invalid action selected
-            reward = REWARD_INVALID_ACTION
+            reward = torch.tensor(REWARD_INVALID_ACTION, device=self.device)
             done = False
             print(f"Invalid action selected: {action}. Assigned reward: {reward}")
             observation = self.get_observation()
@@ -151,13 +158,13 @@ class BackgammonEnv(gym.Env):
 
             if is_backgammon:
                 game_score = 3
-                reward = REWARD_WIN_BACKGAMMON
+                reward = torch.tensor(REWARD_WIN_BACKGAMMON, device=self.device)
             elif is_gammon:
                 game_score = 2
-                reward = REWARD_WIN_GAMMON
+                reward = torch.tensor(REWARD_WIN_GAMMON, device=self.device)
             else:
                 game_score = 1
-                reward = REWARD_WIN_NORMAL
+                reward = torch.tensor(REWARD_WIN_NORMAL, device=self.device)
             info = {"winner": self.current_player, "game_score": game_score}
             self.player_scores[self.current_player] += game_score
             self.game_over = True
@@ -170,7 +177,7 @@ class BackgammonEnv(gym.Env):
                 self.match_over = True
         else:
             info = {}
-            reward = 0.0
+            reward = torch.tensor(0.0, device=self.device)
             done = False
             # Pass the turn to the other player
             self.pass_turn()
@@ -183,7 +190,7 @@ class BackgammonEnv(gym.Env):
     def get_observation(self):
         # Board features
         board_features = self.board.get_board_features(self.current_player)
-        return board_features.numpy()
+        return board_features  # Return tensor on self.device
 
     def update_legal_moves(self):
         # Generate legal moves
@@ -212,7 +219,7 @@ class BackgammonEnv(gym.Env):
 
         num_moves = self.legal_board_features.size(0)
 
-        # Convert action_mask to tensor on the correct device
+        # Update action_mask
         self.action_mask = torch.zeros(
             self.max_legal_moves, dtype=torch.float32, device=self.device
         )
@@ -226,9 +233,6 @@ class BackgammonEnv(gym.Env):
                 dtype=self.legal_board_features.dtype,
                 device=self.device,
             )
-            # Debugging statements
-            print("self.legal_board_features device:", self.legal_board_features.device)
-            print("padding device:", padding.device)
             self.legal_board_features = torch.cat(
                 [self.legal_board_features, padding], dim=0
             )

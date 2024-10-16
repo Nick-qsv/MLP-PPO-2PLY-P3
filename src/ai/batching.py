@@ -42,7 +42,7 @@ def generate_all_board_features(
 
 
 def apply_moves_and_get_features_in_batch(
-    board: Board, legal_moves: List[FullMove], current_player: Player
+    board: Board, legal_moves: List[FullMove], current_player: Player, device
 ) -> torch.Tensor:
     """
     Applies moves in batch and generates features using tensor operations.
@@ -57,12 +57,12 @@ def apply_moves_and_get_features_in_batch(
     """
     N = len(legal_moves)
     if N == 0:
-        return torch.empty((0, 198), dtype=torch.float32)
+        return torch.empty((0, 198), dtype=torch.float32, device=device)
 
     # Initialize batched tensors for board states
-    points_batch = board.points.unsqueeze(0).expand(N, -1, -1).clone().to("cuda")
-    bar_batch = board.bar.unsqueeze(0).expand(N, -1).clone().to("cuda")
-    borne_off_batch = board.borne_off.unsqueeze(0).expand(N, -1).clone().to("cuda")
+    points_batch = board.points.unsqueeze(0).expand(N, -1, -1).clone().to(device)
+    bar_batch = board.bar.unsqueeze(0).expand(N, -1).clone().to(device)
+    borne_off_batch = board.borne_off.unsqueeze(0).expand(N, -1).clone().to(device)
 
     # Since M is uniform and at most 4, we can directly set M
     M = len(legal_moves[0].sub_move_commands)
@@ -106,6 +106,7 @@ def apply_sub_moves_in_batch(
     end_indices: torch.Tensor,
     hits_blot: torch.Tensor,
     current_player: Player,
+    device,
 ):
     """
     Applies sub-moves in batch to the batched board tensors.
@@ -122,7 +123,7 @@ def apply_sub_moves_in_batch(
     N, M = start_indices.shape
     player_idx = PLAYER_TO_INDEX[current_player]
     opponent_idx = 1 - player_idx
-    batch_indices = torch.arange(N, device="cuda")
+    batch_indices = torch.arange(N, device=device)
 
     # Loop over each sub-move index (since M is small, at most 4)
     for s in range(M):
@@ -188,6 +189,7 @@ def get_board_features_batch_from_tensors(
     bar_batch: torch.Tensor,
     borne_off_batch: torch.Tensor,
     current_player: Player,
+    device,
 ) -> torch.Tensor:
     """
     Generates feature vectors for a batch of boards using tensor operations.
@@ -202,7 +204,7 @@ def get_board_features_batch_from_tensors(
     - torch.Tensor: A tensor of shape (N, 198) containing feature vectors.
     """
     N = points_batch.shape[0]
-    features = torch.zeros(N, 198, dtype=torch.float32, device="cuda")
+    features = torch.zeros(N, 198, dtype=torch.float32, device=device)
     feature_index = 0
 
     for player_idx in [0, 1]:
