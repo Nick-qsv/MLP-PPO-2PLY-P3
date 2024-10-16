@@ -1,17 +1,17 @@
 import os
 import io
-import numpy as np  # pylint: disable=import-error
-import boto3  # pylint: disable=import-error
+import numpy as np
+import boto3
 import botocore
 from botocore.config import Config
-from tensorboardX import record_writer  # pylint: disable=import-error
-from tensorboardX.record_writer import S3RecordWriter  # pylint: disable=import-error
-import torch  # pylint: disable=import-error
-import torch.optim as optim  # pylint: disable=import-error
-import torch.nn as nn  # pylint: disable=import-error
-from torch.amp import autocast, GradScaler  # pylint: disable=import-error
-from torch.utils.tensorboard import SummaryWriter  # pylint: disable=import-error
-from torch.distributions import Categorical  # pylint: disable=import-error
+from tensorboardX import record_writer
+from tensorboardX.record_writer import S3RecordWriter
+import torch
+import torch.optim as optim
+import torch.nn as nn
+from torch.amp import autocast, GradScaler
+from torch.utils.tensorboard import SummaryWriter
+from torch.distributions import Categorical
 from .policy_network import BackgammonPolicyNetwork
 from .config import (
     HIDDEN_SIZE,

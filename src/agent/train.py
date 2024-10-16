@@ -17,7 +17,7 @@ from tqdm import tqdm  # For progress bar
 
 # Hyperparameters (some are redefined here for clarity)
 NUM_ENVS = 50
-NUM_UPDATES = 1000000  # Adjust as needed
+NUM_UPDATES = 10_000  # Adjust as needed
 T_HORIZON = 2048  # Number of steps to collect before an update
 NUM_EPOCHS = 4
 HIDDEN_SIZE = 128
