@@ -1,38 +1,15 @@
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-from torch.distributions import Categorical
-from torch.utils.tensorboard import SummaryWriter
-from datetime import datetime
 import numpy as np
 import os
 import boto3
 from botocore.config import Config
 from tqdm import tqdm  # For progress bar
-
-# Import your environment and agent classes
-# Assuming they are defined in the same script or properly imported
-# from your_module import VectorizedBackgammonEnv, BackgammonPPOAgent
-
-# Hyperparameters (some are redefined here for clarity)
-NUM_ENVS = 50
-NUM_UPDATES = 10_000  # Adjust as needed
-T_HORIZON = 2048  # Number of steps to collect before an update
-NUM_EPOCHS = 4
-HIDDEN_SIZE = 128
-LEARNING_RATE = 1e-3
-GAMMA = 0.99
-EPS_CLIP = 0.25
-VALUE_LOSS_COEF = 0.5
-ENTROPY_COEF_START = 0.20
-ENTROPY_COEF_END = 0.01
-ENTROPY_ANNEAL_EPISODES = 600_000
-MAX_TIMESTEPS = 500
+from config import *
+from src.environment.vec_bg_env import VectorizedBackgammonEnv
+from ppo_agent import BackgammonPPOAgent
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
-
 # Initialize the vectorized environment and the PPO agent
 envs = VectorizedBackgammonEnv(num_envs=NUM_ENVS)
 agent = BackgammonPPOAgent(
@@ -41,11 +18,20 @@ agent = BackgammonPPOAgent(
     entropy_coef_end=ENTROPY_COEF_END,
     entropy_anneal_episodes=ENTROPY_ANNEAL_EPISODES,
     device=device,
+    s3_bucket_name="your_s3_bucket_name",  # Replace with your S3 bucket name
 )
+
+# Load the latest model if it exists
+agent.load_model(filename="ppo_backgammon_s3.pth", from_s3=True)
 
 # Training loop
 total_episodes = 0
 total_steps = 0
+
+recent_rewards = []
+recent_wins = []
+episode_rewards = np.zeros(NUM_ENVS)
+episode_lengths = np.zeros(NUM_ENVS)
 
 for update in tqdm(range(NUM_UPDATES), desc="Training Progress"):
     observations = envs.reset()  # Shape: (NUM_ENVS, 198)
@@ -62,58 +48,66 @@ for update in tqdm(range(NUM_UPDATES), desc="Training Progress"):
         )
 
         # Get actions from agent
-        actions, action_log_probs, state_values = agent.select_action(
-            observations_tensor, action_masks_tensor
-        )
-        actions_np = actions.cpu().numpy()
+        actions = agent.select_action(observations_tensor, action_masks_tensor)
+        # actions is a numpy array of shape (NUM_ENVS,)
 
         # Step the environment
-        next_observations, rewards, dones, infos = envs.step(actions_np)
+        next_observations, rewards, dones, infos = envs.step(actions)
         rewards_tensor = torch.tensor(rewards, dtype=torch.float32, device=device)
         dones_tensor = torch.tensor(dones, dtype=torch.float32, device=device)
 
-        # Store experiences in agent's memory
-        agent.memory.append(
-            {
-                "observations": observations_tensor,
-                "action_masks": action_masks_tensor,
-                "actions": actions,
-                "action_log_probs": action_log_probs,
-                "state_values": state_values,
-                "rewards": rewards_tensor,
-                "dones": dones_tensor,
-            }
-        )
+        # Update per-environment episode rewards and lengths
+        episode_rewards += rewards
+        episode_lengths += 1
+
+        # Store rewards and dones in agent's memory
+        for i in range(NUM_ENVS):
+            agent.memory[-NUM_ENVS + i]["reward"] = rewards_tensor[i].unsqueeze(0)
+            agent.memory[-NUM_ENVS + i]["done"] = dones_tensor[i].unsqueeze(0)
 
         observations = next_observations
         total_steps += NUM_ENVS
 
-        # Check if any environments are done
-        if np.any(dones):
-            total_episodes += np.sum(dones)
+        for i in range(NUM_ENVS):
+            if dones[i]:
+                total_episodes += 1
+                # Record the episode reward and win
+                recent_rewards.append(episode_rewards[i])
+                info = infos[i]
+                if "winner" in info and info["winner"] == agent.current_player:
+                    recent_wins.append(1)
+                else:
+                    recent_wins.append(0)
+
+                # Reset per-environment episode data
+                episode_rewards[i] = 0
+                episode_lengths[i] = 0
+
+                # Every 1,000 episodes, call agent.log_metrics
+                if total_episodes % 1000 == 0:
+                    avg_reward = np.mean(recent_rewards[-1000:])
+                    win_rate = np.mean(recent_wins[-1000:])
+                    agent.win_rates.append(win_rate)
+                    agent.log_metrics(total_episodes, avg_reward, win_rate)
 
     # After T_HORIZON steps, optimize the model
-    agent.optimize_model()
+    agent.update()
 
     # Optionally log progress to TensorBoard
     agent.writer.add_scalar("Loss/Policy Loss", agent.last_policy_loss, update)
     agent.writer.add_scalar("Loss/Value Loss", agent.last_value_loss, update)
     agent.writer.add_scalar("Loss/Entropy", agent.last_entropy_loss, update)
+    agent.writer.add_scalar("Loss/Total Loss", agent.last_total_loss, update)
     agent.writer.add_scalar("Stats/Total Episodes", total_episodes, update)
     agent.writer.add_scalar("Stats/Total Steps", total_steps, update)
     agent.writer.add_scalar("Stats/Entropy Coefficient", agent.entropy_coef, update)
 
-    # Save model periodically (e.g., every 100 updates)
-    if update % 100 == 0 and update > 0:
-        model_save_path = f"backgammon_ppo_update_{update}.pt"
-        torch.save(agent.policy_network.state_dict(), model_save_path)
-        print(f"Model saved to {model_save_path}")
-
-        # If using S3, upload the model
-        if agent.s3_bucket_name:
-            s3_key = f"{agent.s3_model_prefix}backgammon_ppo_update_{update}.pt"
-            agent.s3_client.upload_file(model_save_path, agent.s3_bucket_name, s3_key)
-            print(f"Model uploaded to s3://{agent.s3_bucket_name}/{s3_key}")
+    # Save model periodically (e.g., every 50 updates)
+    if update % 50 == 0 and update > 0:
+        filename = f"backgammon_ppo_update_{update}.pth"
+        agent.save_model(filename=filename, to_s3=True)
+        # Also save a copy with a standard filename for loading later
+        agent.save_model(filename="ppo_backgammon_s3.pth", to_s3=True)
 
 # Close environments and writer
 envs.close()
