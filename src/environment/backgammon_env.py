@@ -196,11 +196,11 @@ class BackgammonEnv(gym.Env):
         # Generate legal board features for the action mask
         if self.legal_moves:
             self.legal_board_features = apply_moves_and_get_features_in_batch(
-                self.board, self.legal_moves, self.current_player
+                self.board, self.legal_moves, self.current_player, device=self.device
             )
         else:
             self.legal_board_features = torch.empty(
-                (0, 198), dtype=torch.float32, device="cuda"
+                (0, 198), dtype=torch.float32, device=self.device
             )
 
         num_moves = self.legal_board_features.size(0)
@@ -211,7 +211,11 @@ class BackgammonEnv(gym.Env):
             self.legal_moves = self.legal_moves[: self.max_legal_moves]
 
         num_moves = self.legal_board_features.size(0)
-        self.action_mask = np.zeros(self.max_legal_moves, dtype=np.float32)
+
+        # Convert action_mask to tensor on the correct device
+        self.action_mask = torch.zeros(
+            self.max_legal_moves, dtype=torch.float32, device=self.device
+        )
         self.action_mask[:num_moves] = 1.0
 
         # If there are fewer moves than max_legal_moves, pad the features
@@ -220,19 +224,11 @@ class BackgammonEnv(gym.Env):
             padding = torch.zeros(
                 (padding_length, self.legal_board_features.size(1)),
                 dtype=self.legal_board_features.dtype,
-                device=self.legal_board_features.device,
+                device=self.device,
             )
-            self.legal_board_features = torch.cat(
-                [self.legal_board_features, padding], dim=0
-            )
-
-        # If there are fewer moves than max_legal_moves, pad the features
-        if num_moves < self.max_legal_moves:
-            padding_length = self.max_legal_moves - num_moves
-            padding = torch.zeros(
-                (padding_length, self.legal_board_features.size(1)),
-                dtype=self.legal_board_features.dtype,
-            )
+            # Debugging statements
+            print("self.legal_board_features device:", self.legal_board_features.device)
+            print("padding device:", padding.device)
             self.legal_board_features = torch.cat(
                 [self.legal_board_features, padding], dim=0
             )

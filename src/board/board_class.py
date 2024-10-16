@@ -10,11 +10,16 @@ PLAYER_TO_INDEX = {
 
 
 class Board:
-    def __init__(self):
-        # Initialize tensors for points, bar, and borne_off
-        self.points = torch.zeros((2, 24), dtype=torch.int32)  # Shape: (2, 24)
-        self.bar = torch.zeros(2, dtype=torch.int32)  # Shape: (2,)
-        self.borne_off = torch.zeros(2, dtype=torch.int32)  # Shape: (2,)
+    def __init__(self, device):
+        self.device = device
+        # Initialize tensors for points, bar, and borne_off on the correct device
+        self.points = torch.zeros(
+            (2, 24), dtype=torch.int32, device=self.device
+        )  # Shape: (2, 24)
+        self.bar = torch.zeros(2, dtype=torch.int32, device=self.device)  # Shape: (2,)
+        self.borne_off = torch.zeros(
+            2, dtype=torch.int32, device=self.device
+        )  # Shape: (2,)
         self.initialize_board()
 
     def initialize_board(self):
@@ -30,7 +35,7 @@ class Board:
         self.set_checkers(Player.PLAYER2, 5, 5)
 
     def copy(self) -> "Board":
-        new_board = Board()
+        new_board = Board(self.device)
         new_board.points = self.points.clone()
         new_board.bar = self.bar.clone()
         new_board.borne_off = self.borne_off.clone()
@@ -93,7 +98,7 @@ class Board:
         Generates a feature vector representing the board state.
         Total features: 198
         """
-        features = torch.zeros(198, dtype=torch.float32)
+        features = torch.zeros(198, dtype=torch.float32, device=self.device)
         feature_index = 0
 
         for player_idx in [0, 1]:
@@ -102,24 +107,24 @@ class Board:
                 checkers = player_points[point_idx].item()
                 if checkers == 0:
                     features[feature_index : feature_index + 4] = torch.tensor(
-                        [0.0, 0.0, 0.0, 0.0]
+                        [0.0, 0.0, 0.0, 0.0], device=self.device
                     )
                 elif checkers == 1:
                     features[feature_index : feature_index + 4] = torch.tensor(
-                        [1.0, 0.0, 0.0, 0.0]
+                        [1.0, 0.0, 0.0, 0.0], device=self.device
                     )
                 elif checkers == 2:
                     features[feature_index : feature_index + 4] = torch.tensor(
-                        [1.0, 1.0, 0.0, 0.0]
+                        [1.0, 1.0, 0.0, 0.0], device=self.device
                     )
                 elif checkers >= 3:
                     features[feature_index : feature_index + 4] = torch.tensor(
-                        [1.0, 1.0, 1.0, (checkers - 3.0) / 2.0]
+                        [1.0, 1.0, 1.0, (checkers - 3.0) / 2.0], device=self.device
                     )
                 else:
                     # Negative checkers should not occur
                     features[feature_index : feature_index + 4] = torch.tensor(
-                        [0.0, 0.0, 0.0, 0.0]
+                        [0.0, 0.0, 0.0, 0.0], device=self.device
                     )
                 feature_index += 4
 
@@ -143,55 +148,3 @@ class Board:
             feature_index == 198
         ), f"Feature vector length is {feature_index}, expected 198"
         return features
-
-    def print_board(self):
-        """
-        Prints the board representation.
-        """
-        board_representation = []
-        for i in range(24):
-            p1_checkers = self.points[PLAYER_TO_INDEX[Player.PLAYER1], i].item()
-            p2_checkers = self.points[PLAYER_TO_INDEX[Player.PLAYER2], i].item()
-            point_info = f"Point {i}: "
-            if p1_checkers > 0:
-                point_info += f"{p1_checkers} checkers by PLAYER1"
-            elif p2_checkers > 0:
-                point_info += f"{p2_checkers} checkers by PLAYER2"
-            else:
-                point_info += "Empty"
-            board_representation.append(point_info)
-        print("\n".join(board_representation))
-
-        print("\nBar checkers:")
-        print(f"Player 1: {self.bar[PLAYER_TO_INDEX[Player.PLAYER1]].item()}")
-        print(f"Player 2: {self.bar[PLAYER_TO_INDEX[Player.PLAYER2]].item()}")
-
-        print("\nBorne off checkers:")
-        print(f"Player 1: {self.borne_off[PLAYER_TO_INDEX[Player.PLAYER1]].item()}")
-        print(f"Player 2: {self.borne_off[PLAYER_TO_INDEX[Player.PLAYER2]].item()}")
-
-    def test_get_board_features(self, current_player: Player):
-        """
-        Prints the board and its feature representation.
-        """
-        print("Board Representation:")
-        self.print_board()
-
-        features = self.get_board_features(current_player)
-        feature_index = 0
-
-        for player_idx in [0, 1]:
-            player_name = "PLAYER1" if player_idx == 0 else "PLAYER2"
-            print(f"\nFeatures for {player_name}:")
-            for point in range(24):
-                feature_slice = features[feature_index : feature_index + 4].tolist()
-                print(f"Point {point + 1} ({player_name}): {feature_slice}")
-                feature_index += 4
-            bar_feature = features[feature_index].item()
-            borne_off_feature = features[feature_index + 1].item()
-            print(f"Bar checkers ({player_name}): {bar_feature}")
-            print(f"Borne off checkers ({player_name}): {borne_off_feature}")
-            feature_index += 2
-
-        current_player_feature = features[feature_index : feature_index + 2].tolist()
-        print(f"\nCurrent player feature: {current_player_feature}")
