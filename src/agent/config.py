@@ -16,6 +16,6 @@ ENTROPY_ANNEAL_EPISODES = 600_000
 MAX_TIMESTEPS = 500
 
 # S3 Configuration
-S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "bgppomodels")
+S3_BUCKET_NAME = "bgppomodels"
 S3_MODEL_PREFIX = "models/"
 S3_LOG_PREFIX = "logs/"

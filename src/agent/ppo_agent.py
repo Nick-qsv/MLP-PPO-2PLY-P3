@@ -23,7 +23,6 @@ from .config import (
     ENTROPY_COEF_START,
     ENTROPY_COEF_END,
     ENTROPY_ANNEAL_EPISODES,
-    NUM_EPISODES,
 )
 from datetime import datetime  # pylint: disable=import-error
 
@@ -463,7 +462,7 @@ class BackgammonPPOAgent:
         win_rate = sum(self.win_rates[-100:]) / min(len(self.win_rates), 100)
         avg_loss = sum(self.losses[-100:]) / min(len(self.losses), 100)
         print(
-            f"*** Episode {episode}/{NUM_EPISODES} | Reward: {episode_reward} | Loss: {avg_loss:.4f} | Win Rate: {win_rate*100:.2f}% ***"
+            f"*** Episode {episode} | Reward: {episode_reward} | Loss: {avg_loss:.4f} | Win Rate: {win_rate*100:.2f}% ***"
         )
 
         # Log win rate to TensorBoard at reduced frequency
