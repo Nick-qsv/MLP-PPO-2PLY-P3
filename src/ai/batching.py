@@ -42,7 +42,7 @@ def generate_all_board_features(
 
 
 def apply_moves_and_get_features_in_batch(
-    board: Board, legal_moves: List[FullMove], current_player: Player, device
+    board: Board, legal_moves: List[FullMove], current_player: Player
 ) -> torch.Tensor:
     """
     Applies moves in batch and generates features using tensor operations.
@@ -56,29 +56,36 @@ def apply_moves_and_get_features_in_batch(
     - torch.Tensor: A tensor of shape (batch_size, 198) containing feature vectors.
     """
     N = len(legal_moves)
+    device = board.points.device  # Get device from board
+
     if N == 0:
         return torch.empty((0, 198), dtype=torch.float32, device=device)
 
     # Initialize batched tensors for board states
-    points_batch = board.points.unsqueeze(0).expand(N, -1, -1).clone().to(device)
-    bar_batch = board.bar.unsqueeze(0).expand(N, -1).clone().to(device)
-    borne_off_batch = board.borne_off.unsqueeze(0).expand(N, -1).clone().to(device)
+    points_batch = board.points.unsqueeze(0).expand(N, -1, -1).clone()
+    bar_batch = board.bar.unsqueeze(0).expand(N, -1).clone()
+    borne_off_batch = board.borne_off.unsqueeze(0).expand(N, -1).clone()
 
     # Since M is uniform and at most 4, we can directly set M
     M = len(legal_moves[0].sub_move_commands)
 
     # Collect sub-move data into tensors
-    start_indices = torch.empty((N, M), dtype=torch.int64)
-    end_indices = torch.empty((N, M), dtype=torch.int64)
-    hits_blot = torch.empty((N, M), dtype=torch.bool)
+    start_indices = torch.empty((N, M), dtype=torch.int64, device=device)
+    end_indices = torch.empty((N, M), dtype=torch.int64, device=device)
+    hits_blot = torch.empty((N, M), dtype=torch.bool, device=device)
     for i, move in enumerate(legal_moves):
         for j, sub_move in enumerate(move.sub_move_commands):
             start_indices[i, j] = sub_move.start_index
             end_indices[i, j] = sub_move.end_index
             hits_blot[i, j] = sub_move.hits_blot
-    start_indices = start_indices.to("cuda")
-    end_indices = end_indices.to("cuda")
-    hits_blot = hits_blot.to("cuda")
+
+    # Debugging statements
+    print(f"points_batch device: {points_batch.device}")
+    print(f"bar_batch device: {bar_batch.device}")
+    print(f"borne_off_batch device: {borne_off_batch.device}")
+    print(f"start_indices device: {start_indices.device}")
+    print(f"end_indices device: {end_indices.device}")
+    print(f"hits_blot device: {hits_blot.device}")
 
     # Apply sub-moves in batch using tensor operations
     apply_sub_moves_in_batch(
@@ -106,7 +113,6 @@ def apply_sub_moves_in_batch(
     end_indices: torch.Tensor,
     hits_blot: torch.Tensor,
     current_player: Player,
-    device,
 ):
     """
     Applies sub-moves in batch to the batched board tensors.
@@ -121,9 +127,20 @@ def apply_sub_moves_in_batch(
     - current_player (Player): The player making the moves.
     """
     N, M = start_indices.shape
+    device = points_batch.device  # Use the device of points_batch
+
     player_idx = PLAYER_TO_INDEX[current_player]
     opponent_idx = 1 - player_idx
     batch_indices = torch.arange(N, device=device)
+
+    # Debugging statements
+    print(f"points_batch device: {points_batch.device}")
+    print(f"bar_batch device: {bar_batch.device}")
+    print(f"borne_off_batch device: {borne_off_batch.device}")
+    print(f"start_indices device: {start_indices.device}")
+    print(f"end_indices device: {end_indices.device}")
+    print(f"hits_blot device: {hits_blot.device}")
+    print(f"batch_indices device: {batch_indices.device}")
 
     # Loop over each sub-move index (since M is small, at most 4)
     for s in range(M):
@@ -140,29 +157,23 @@ def apply_sub_moves_in_batch(
         # Remove checker from bar
         if remove_from_bar_mask.any():
             batch_idx_bar = batch_indices[remove_from_bar_mask]
-            # Subtract 1 from the current player's bar count
             bar_batch[batch_idx_bar, player_idx] -= 1
 
         # Remove checker from points
         if remove_from_points_mask.any():
             batch_idx_points = batch_indices[remove_from_points_mask]
             start_idx_points = start_index_s[remove_from_points_mask]
-            # Subtract 1 from the current player's checkers at the start positions
             points_batch[batch_idx_points, player_idx, start_idx_points] -= 1
 
         # Handle hitting opponent's blot
-        # If hits_blot_s is True, we need to remove one of opponent's checkers from the end index
         if hits_blot_s.any():
             hits_blot_mask = hits_blot_s
             batch_idx_hits = batch_indices[hits_blot_mask]
             end_idx_hits = end_index_s[hits_blot_mask]
-            # Subtract 1 from opponent's checkers at the end positions
             points_batch[batch_idx_hits, opponent_idx, end_idx_hits] -= 1
-            # Add 1 to opponent's bar count
             bar_batch[batch_idx_hits, opponent_idx] += 1
 
         # Add checker to end index or bear off
-        # If end_index == -2, it means the checker is being borne off
         bear_off_mask = end_index_s == -2
         add_to_points_mask = end_index_s != -2
 
@@ -170,18 +181,12 @@ def apply_sub_moves_in_batch(
         if add_to_points_mask.any():
             batch_idx_points_add = batch_indices[add_to_points_mask]
             end_idx_points = end_index_s[add_to_points_mask]
-            # Add 1 to the current player's checkers at the end positions
             points_batch[batch_idx_points_add, player_idx, end_idx_points] += 1
 
         # Bear off checker
         if bear_off_mask.any():
             batch_idx_bear_off = batch_indices[bear_off_mask]
-            # Add 1 to the current player's borne off count
             borne_off_batch[batch_idx_bear_off, player_idx] += 1
-
-        # Note: Since M is uniform and small, the loop over s is efficient
-        # and allows us to handle each sub-move sequentially while still
-        # processing the batch in parallel.
 
 
 def get_board_features_batch_from_tensors(
@@ -189,7 +194,6 @@ def get_board_features_batch_from_tensors(
     bar_batch: torch.Tensor,
     borne_off_batch: torch.Tensor,
     current_player: Player,
-    device,
 ) -> torch.Tensor:
     """
     Generates feature vectors for a batch of boards using tensor operations.
@@ -204,15 +208,23 @@ def get_board_features_batch_from_tensors(
     - torch.Tensor: A tensor of shape (N, 198) containing feature vectors.
     """
     N = points_batch.shape[0]
+    device = points_batch.device  # Use device from points_batch
+
     features = torch.zeros(N, 198, dtype=torch.float32, device=device)
     feature_index = 0
+
+    # Debugging statements
+    print(f"points_batch device: {points_batch.device}")
+    print(f"bar_batch device: {bar_batch.device}")
+    print(f"borne_off_batch device: {borne_off_batch.device}")
+    print(f"features device: {features.device}")
 
     for player_idx in [0, 1]:
         player_points = points_batch[:, player_idx, :]  # Shape: (N, 24)
         for point_idx in range(24):
             checkers = player_points[:, point_idx]  # Shape: (N,)
 
-            features_slice = torch.zeros(N, 4, dtype=torch.float32, device="cuda")
+            features_slice = torch.zeros(N, 4, dtype=torch.float32, device=device)
 
             # Checkers == 1
             mask_one = checkers == 1
@@ -226,7 +238,7 @@ def get_board_features_batch_from_tensors(
             mask_three_or_more = checkers >= 3
             features_slice[mask_three_or_more, 0:3] = 1.0
             features_slice[mask_three_or_more, 3] = (
-                checkers[mask_three_or_more] - 3.0
+                checkers[mask_three_or_more].float() - 3.0
             ) / 2.0
 
             # Assign to the features tensor

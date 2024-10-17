@@ -94,43 +94,40 @@ class Board:
                 print("No checkers on the bar to remove.")
 
     def get_board_features(self, current_player: Player):
-        """
-        Generates a feature vector representing the board state.
-        Total features: 198
-        """
         features = torch.zeros(198, dtype=torch.float32, device=self.device)
         feature_index = 0
 
         for player_idx in [0, 1]:
             player_points = self.points[player_idx, :]  # Shape: (24,)
             for point_idx in range(24):
-                checkers = player_points[point_idx].item()
-                if checkers == 0:
-                    features[feature_index : feature_index + 4] = torch.tensor(
-                        [0.0, 0.0, 0.0, 0.0], device=self.device
-                    )
-                elif checkers == 1:
-                    features[feature_index : feature_index + 4] = torch.tensor(
-                        [1.0, 0.0, 0.0, 0.0], device=self.device
-                    )
+                checkers = player_points[point_idx]  # Keep as tensor
+
+                # Initialize the feature slice
+                features_slice = torch.zeros(4, dtype=torch.float32, device=self.device)
+
+                # Checkers == 1
+                if checkers == 1:
+                    features_slice[0] = 1.0
+
+                # Checkers == 2
                 elif checkers == 2:
-                    features[feature_index : feature_index + 4] = torch.tensor(
-                        [1.0, 1.0, 0.0, 0.0], device=self.device
-                    )
+                    features_slice[0:2] = 1.0
+
+                # Checkers >= 3
                 elif checkers >= 3:
-                    features[feature_index : feature_index + 4] = torch.tensor(
-                        [1.0, 1.0, 1.0, (checkers - 3.0) / 2.0], device=self.device
-                    )
-                else:
-                    # Negative checkers should not occur
-                    features[feature_index : feature_index + 4] = torch.tensor(
-                        [0.0, 0.0, 0.0, 0.0], device=self.device
-                    )
+                    features_slice[0:3] = 1.0
+                    features_slice[3] = (checkers - 3.0) / 2.0
+
+                # Assign to the features tensor
+                features[feature_index : feature_index + 4] = features_slice
                 feature_index += 4
 
             # Add bar and borne_off features
-            bar_feature = self.bar[player_idx].item() / 2.0
-            borne_off_feature = self.borne_off[player_idx].item() / 15.0
+            bar_feature = self.bar[player_idx].float() / 2.0  # Keep as tensor
+            borne_off_feature = (
+                self.borne_off[player_idx].float() / 15.0
+            )  # Keep as tensor
+
             features[feature_index] = bar_feature
             features[feature_index + 1] = borne_off_feature
             feature_index += 2
