@@ -80,12 +80,12 @@ def apply_moves_and_get_features_in_batch(
             hits_blot[i, j] = sub_move.hits_blot
 
     # Debugging statements
-    print(f"points_batch device: {points_batch.device}")
-    print(f"bar_batch device: {bar_batch.device}")
-    print(f"borne_off_batch device: {borne_off_batch.device}")
-    print(f"start_indices device: {start_indices.device}")
-    print(f"end_indices device: {end_indices.device}")
-    print(f"hits_blot device: {hits_blot.device}")
+    # print(f"points_batch device: {points_batch.device}")
+    # print(f"bar_batch device: {bar_batch.device}")
+    # print(f"borne_off_batch device: {borne_off_batch.device}")
+    # print(f"start_indices device: {start_indices.device}")
+    # print(f"end_indices device: {end_indices.device}")
+    # print(f"hits_blot device: {hits_blot.device}")
 
     # Apply sub-moves in batch using tensor operations
     apply_sub_moves_in_batch(
@@ -134,13 +134,13 @@ def apply_sub_moves_in_batch(
     batch_indices = torch.arange(N, device=device)
 
     # Debugging statements
-    print(f"points_batch device: {points_batch.device}")
-    print(f"bar_batch device: {bar_batch.device}")
-    print(f"borne_off_batch device: {borne_off_batch.device}")
-    print(f"start_indices device: {start_indices.device}")
-    print(f"end_indices device: {end_indices.device}")
-    print(f"hits_blot device: {hits_blot.device}")
-    print(f"batch_indices device: {batch_indices.device}")
+    # print(f"points_batch device: {points_batch.device}")
+    # print(f"bar_batch device: {bar_batch.device}")
+    # print(f"borne_off_batch device: {borne_off_batch.device}")
+    # print(f"start_indices device: {start_indices.device}")
+    # print(f"end_indices device: {end_indices.device}")
+    # print(f"hits_blot device: {hits_blot.device}")
+    # print(f"batch_indices device: {batch_indices.device}")
 
     # Loop over each sub-move index (since M is small, at most 4)
     for s in range(M):
@@ -214,10 +214,10 @@ def get_board_features_batch_from_tensors(
     feature_index = 0
 
     # Debugging statements
-    print(f"points_batch device: {points_batch.device}")
-    print(f"bar_batch device: {bar_batch.device}")
-    print(f"borne_off_batch device: {borne_off_batch.device}")
-    print(f"features device: {features.device}")
+    # print(f"points_batch device: {points_batch.device}")
+    # print(f"bar_batch device: {bar_batch.device}")
+    # print(f"borne_off_batch device: {borne_off_batch.device}")
+    # print(f"features device: {features.device}")
 
     for player_idx in [0, 1]:
         player_points = points_batch[:, player_idx, :]  # Shape: (N, 24)
