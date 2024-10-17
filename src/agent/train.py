@@ -70,7 +70,7 @@ def train_agent():
                     episode_lengths[i] = 0
 
                     # Log metrics every 1000 episodes
-                    if total_episodes % 1000 == 0:
+                    if total_episodes % 10 == 0:
                         avg_reward = np.mean(recent_rewards[-1000:])
                         win_rate = np.mean(recent_wins[-1000:])
                         agent.win_rates.append(win_rate)

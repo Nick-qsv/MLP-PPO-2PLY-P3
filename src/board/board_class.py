@@ -2,6 +2,13 @@
 from src.players.player import Player
 import torch  # pylint: disable=import-error
 from src.constants import BAR_INDEX, PLAYER_TO_INDEX, BEAR_OFF_INDEX
+import logging
+
+logging.basicConfig(
+    level=logging.WARNING,  # Change to DEBUG for more detailed logs
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 class Board:
@@ -38,6 +45,8 @@ class Board:
 
     def set_checkers(self, player: Player, index: int, count: int):
         player_idx = PLAYER_TO_INDEX[player]
+        assert 0 <= index < 24, f"Invalid point index {index}."
+        assert count >= 0, "Checker count cannot be negative."
         self.points[player_idx, index] = count
 
     def add_checker(self, index: int, player: Player):
@@ -45,11 +54,11 @@ class Board:
         opponent_idx = 1 - player_idx
 
         if not (0 <= index < 24 or index == BEAR_OFF_INDEX):
-            print(f"Attempted to add checker to invalid index {index}.")
+            logger.error(f"Attempted to add checker to invalid index {index}.")
             return
 
         if index != BEAR_OFF_INDEX:
-            opponent_checkers = self.points[opponent_idx, index]
+            opponent_checkers = self.points[opponent_idx, index].item()
 
             if opponent_checkers == 0:
                 # No opponent checkers, add to own checkers
@@ -61,7 +70,7 @@ class Board:
                 self.points[player_idx, index] += 1
             else:
                 # Blocked by opponent
-                print(f"Cannot move to point {index}: blocked by opponent.")
+                logger.warning(f"Cannot move to point {index}: blocked by opponent.")
         else:
             # Bear off
             self.borne_off[player_idx] += 1
@@ -70,23 +79,23 @@ class Board:
         player_idx = PLAYER_TO_INDEX[player]
 
         if not (0 <= index < 24 or index == BAR_INDEX):
-            print(f"Attempted to remove checker from invalid index {index}.")
+            logger.error(f"Attempted to remove checker from invalid index {index}.")
             return
 
         if index != BAR_INDEX:
-            own_checkers = self.points[player_idx, index]
+            own_checkers = self.points[player_idx, index].item()
             if own_checkers > 0:
                 self.points[player_idx, index] -= 1
             else:
-                print(
+                logger.warning(
                     f"No checker to remove at point {index} for player {player.name}."
                 )
         else:
             # Remove from bar
-            if self.bar[player_idx] > 0:
+            if self.bar[player_idx].item() > 0:
                 self.bar[player_idx] -= 1
             else:
-                print("No checkers on the bar to remove.")
+                logger.warning("No checkers on the bar to remove.")
 
     def get_board_features(self, current_player: Player):
         features = torch.zeros(198, dtype=torch.float32, device=self.device)
