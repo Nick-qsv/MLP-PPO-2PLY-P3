@@ -13,11 +13,8 @@ from .conditions import (
     all_checkers_home,
 )
 from src.board.board_state import BoardState
+from src.constants import BAR_INDEX, PLAYER_TO_INDEX, BEAR_OFF_INDEX
 
-PLAYER_TO_INDEX = {
-    Player.PLAYER1: 0,
-    Player.PLAYER2: 1,
-}
 # Functions originally from the initial code
 
 
@@ -67,7 +64,7 @@ def get_moves_bar(board: Board, die_value: int, player: Player) -> List[SubMove]
 
     if is_valid_entry_at_index(dest_idx, player, board):
         sub_move = SubMove(
-            start_index=-1,  # Represents starting from the bar
+            start_index=BAR_INDEX,  # Represents starting from the bar
             end_index=dest_idx,
             hits_blot=check_if_blot(index=dest_idx, player=player, board=board),
         )
@@ -121,7 +118,7 @@ def get_moves_bear_off(board: Board, die_value: int, player: Player) -> List[Sub
     if player == Player.PLAYER1:
         if last_checker_idx + die_value * direction >= 24:
             sub_move = SubMove(
-                start_index=last_checker_idx, end_index=-2, hits_blot=False
+                start_index=last_checker_idx, end_index=BEAR_OFF_INDEX, hits_blot=False
             )
             move_set.append(sub_move)
 
@@ -129,13 +126,15 @@ def get_moves_bear_off(board: Board, die_value: int, player: Player) -> List[Sub
         if potential_start_index != last_checker_idx:
             if board.points[player_idx, potential_start_index].item() > 0:
                 sub_move = SubMove(
-                    start_index=potential_start_index, end_index=-2, hits_blot=False
+                    start_index=potential_start_index,
+                    end_index=BEAR_OFF_INDEX,
+                    hits_blot=False,
                 )
                 move_set.append(sub_move)
     else:
         if last_checker_idx + die_value * direction < 0:
             sub_move = SubMove(
-                start_index=last_checker_idx, end_index=-2, hits_blot=False
+                start_index=last_checker_idx, end_index=BEAR_OFF_INDEX, hits_blot=False
             )
             move_set.append(sub_move)
 
@@ -143,7 +142,9 @@ def get_moves_bear_off(board: Board, die_value: int, player: Player) -> List[Sub
         if potential_start_index != last_checker_idx:
             if board.points[player_idx, potential_start_index].item() > 0:
                 sub_move = SubMove(
-                    start_index=potential_start_index, end_index=-2, hits_blot=False
+                    start_index=potential_start_index,
+                    end_index=BEAR_OFF_INDEX,
+                    hits_blot=False,
                 )
                 move_set.append(sub_move)
 

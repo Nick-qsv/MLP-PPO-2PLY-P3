@@ -4,12 +4,7 @@ from src.board.board_class import Board
 from src.players.player import Player
 from src.moves.move_types import FullMove
 from src.moves.get_all_moves import get_all_possible_moves
-
-# Mapping from Player to tensor index
-PLAYER_TO_INDEX = {
-    Player.PLAYER1: 0,
-    Player.PLAYER2: 1,
-}
+from src.constants import PLAYER_TO_INDEX, BEAR_OFF_INDEX, BAR_INDEX
 
 
 def generate_all_board_features(
@@ -66,26 +61,20 @@ def apply_moves_and_get_features_in_batch(
     bar_batch = board.bar.unsqueeze(0).expand(N, -1).clone()
     borne_off_batch = board.borne_off.unsqueeze(0).expand(N, -1).clone()
 
-    # Since M is uniform and at most 4, we can directly set M
-    M = len(legal_moves[0].sub_move_commands)
+    # Since M varies, find the maximum number of sub-moves
+    M = max(len(move.sub_move_commands) for move in legal_moves)
+
+    # Initialize tensors with default values
+    start_indices = torch.full((N, M), BAR_INDEX, dtype=torch.int64, device=device)
+    end_indices = torch.full((N, M), BEAR_OFF_INDEX, dtype=torch.int64, device=device)
+    hits_blot = torch.zeros((N, M), dtype=torch.bool, device=device)
 
     # Collect sub-move data into tensors
-    start_indices = torch.empty((N, M), dtype=torch.int64, device=device)
-    end_indices = torch.empty((N, M), dtype=torch.int64, device=device)
-    hits_blot = torch.empty((N, M), dtype=torch.bool, device=device)
     for i, move in enumerate(legal_moves):
         for j, sub_move in enumerate(move.sub_move_commands):
             start_indices[i, j] = sub_move.start_index
             end_indices[i, j] = sub_move.end_index
             hits_blot[i, j] = sub_move.hits_blot
-
-    # Debugging statements
-    # print(f"points_batch device: {points_batch.device}")
-    # print(f"bar_batch device: {bar_batch.device}")
-    # print(f"borne_off_batch device: {borne_off_batch.device}")
-    # print(f"start_indices device: {start_indices.device}")
-    # print(f"end_indices device: {end_indices.device}")
-    # print(f"hits_blot device: {hits_blot.device}")
 
     # Apply sub-moves in batch using tensor operations
     apply_sub_moves_in_batch(
@@ -133,15 +122,6 @@ def apply_sub_moves_in_batch(
     opponent_idx = 1 - player_idx
     batch_indices = torch.arange(N, device=device)
 
-    # Debugging statements
-    # print(f"points_batch device: {points_batch.device}")
-    # print(f"bar_batch device: {bar_batch.device}")
-    # print(f"borne_off_batch device: {borne_off_batch.device}")
-    # print(f"start_indices device: {start_indices.device}")
-    # print(f"end_indices device: {end_indices.device}")
-    # print(f"hits_blot device: {hits_blot.device}")
-    # print(f"batch_indices device: {batch_indices.device}")
-
     # Loop over each sub-move index (since M is small, at most 4)
     for s in range(M):
         # Extract the s-th sub-move for all moves in the batch
@@ -150,9 +130,8 @@ def apply_sub_moves_in_batch(
         hits_blot_s = hits_blot[:, s]  # Shape: (N,)
 
         # Remove checker from start index
-        # If start_index == -1, it means the checker is being removed from the bar
-        remove_from_bar_mask = start_index_s == -1
-        remove_from_points_mask = start_index_s != -1
+        remove_from_bar_mask = start_index_s == BAR_INDEX
+        remove_from_points_mask = (start_index_s >= 0) & (start_index_s < 24)
 
         # Remove checker from bar
         if remove_from_bar_mask.any():
@@ -167,15 +146,18 @@ def apply_sub_moves_in_batch(
 
         # Handle hitting opponent's blot
         if hits_blot_s.any():
-            hits_blot_mask = hits_blot_s
-            batch_idx_hits = batch_indices[hits_blot_mask]
-            end_idx_hits = end_index_s[hits_blot_mask]
+            batch_idx_hits = batch_indices[hits_blot_s]
+            end_idx_hits = end_index_s[hits_blot_s]
+            # Ensure end indices are valid
+            valid_hits_mask = (end_idx_hits >= 0) & (end_idx_hits < 24)
+            if not valid_hits_mask.all():
+                raise ValueError("Invalid end indices in hitting blot")
             points_batch[batch_idx_hits, opponent_idx, end_idx_hits] -= 1
             bar_batch[batch_idx_hits, opponent_idx] += 1
 
         # Add checker to end index or bear off
-        bear_off_mask = end_index_s == -2
-        add_to_points_mask = end_index_s != -2
+        bear_off_mask = end_index_s == BEAR_OFF_INDEX
+        add_to_points_mask = (end_index_s >= 0) & (end_index_s < 24)
 
         # Add checker to points
         if add_to_points_mask.any():
@@ -212,12 +194,6 @@ def get_board_features_batch_from_tensors(
 
     features = torch.zeros(N, 198, dtype=torch.float32, device=device)
     feature_index = 0
-
-    # Debugging statements
-    # print(f"points_batch device: {points_batch.device}")
-    # print(f"bar_batch device: {bar_batch.device}")
-    # print(f"borne_off_batch device: {borne_off_batch.device}")
-    # print(f"features device: {features.device}")
 
     for player_idx in [0, 1]:
         player_points = points_batch[:, player_idx, :]  # Shape: (N, 24)

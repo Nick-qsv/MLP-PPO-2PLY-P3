@@ -23,7 +23,7 @@ def valid_move(destination_idx: int, player: Player, board: Board) -> bool:
             return False
         else:
             return True
-    elif destination_idx == -2:
+    elif destination_idx == BEAR_OFF_INDEX:
         # Bearing off
         return True
     else:

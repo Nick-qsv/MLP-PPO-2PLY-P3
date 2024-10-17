@@ -4,14 +4,7 @@ from typing import List
 from src.board.board_class import Board
 from src.players.player import Player
 from src.moves.get_all_moves import get_all_possible_moves
-
-
-# Mapping from Player to tensor index
-PLAYER_TO_INDEX = {
-    Player.PLAYER1: 0,
-    Player.PLAYER2: 1,
-}
-
+from src.constants import BAR_INDEX, PLAYER_TO_INDEX, BEAR_OFF_INDEX
 
 # Assuming other necessary functions and classes are defined here...
 # For brevity, they are not included in this snippet.
@@ -116,8 +109,8 @@ def test_get_all_possible_moves():
     for i, move in enumerate(legal_moves):
         # Generate the description for each SubMove
         moves_description = ", ".join(
-            f"[{'bar' if sub_move.start_index == -1 else sub_move.start_index}, "
-            f"{'off' if sub_move.end_index == -2 else sub_move.end_index}, "
+            f"[{'bar' if sub_move.start_index == BAR_INDEX else sub_move.start_index}, "
+            f"{'off' if sub_move.end_index == BEAR_OFF_INDEX else sub_move.end_index}, "
             f"{'*' if sub_move.hits_blot else '-'}]"
             for sub_move in move.sub_move_commands
         )

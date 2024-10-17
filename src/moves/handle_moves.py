@@ -3,11 +3,7 @@ from src.board.board_class import Board
 from src.moves.move_types import FullMove, SubMove
 from src.players.player import Player
 from src.moves.move_logic import get_moves_with_one_die
-
-PLAYER_TO_INDEX = {
-    Player.PLAYER1: 0,
-    Player.PLAYER2: 1,
-}
+from src.constants import PLAYER_TO_INDEX, BEAR_OFF_INDEX
 
 
 def handle_non_doubles(
@@ -148,7 +144,7 @@ def execute_sub_move_on_board(board: Board, sub_move: SubMove, player: Player) -
         board.bar[opponent_idx] += 1
 
     # Add the checker to the end index or bear off
-    if sub_move.end_index == -2:
+    if sub_move.end_index == BEAR_OFF_INDEX:
         # Bear off
         board.borne_off[player_idx] += 1
     else:

@@ -1,12 +1,7 @@
 # backgammon/board/board.py
 from src.players.player import Player
 import torch  # pylint: disable=import-error
-
-# Mapping from Player to tensor index
-PLAYER_TO_INDEX = {
-    Player.PLAYER1: 0,
-    Player.PLAYER2: 1,
-}
+from src.constants import BAR_INDEX, PLAYER_TO_INDEX, BEAR_OFF_INDEX
 
 
 class Board:
@@ -49,11 +44,11 @@ class Board:
         player_idx = PLAYER_TO_INDEX[player]
         opponent_idx = 1 - player_idx
 
-        if not (0 <= index < 24 or index == -2):
+        if not (0 <= index < 24 or index == BEAR_OFF_INDEX):
             print(f"Attempted to add checker to invalid index {index}.")
             return
 
-        if index != -2:
+        if index != BEAR_OFF_INDEX:
             opponent_checkers = self.points[opponent_idx, index]
 
             if opponent_checkers == 0:
@@ -74,11 +69,11 @@ class Board:
     def remove_checker(self, index: int, player: Player):
         player_idx = PLAYER_TO_INDEX[player]
 
-        if not (0 <= index < 24 or index == -1):
+        if not (0 <= index < 24 or index == BAR_INDEX):
             print(f"Attempted to remove checker from invalid index {index}.")
             return
 
-        if index != -1:
+        if index != BAR_INDEX:
             own_checkers = self.points[player_idx, index]
             if own_checkers > 0:
                 self.points[player_idx, index] -= 1
