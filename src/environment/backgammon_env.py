@@ -4,7 +4,7 @@ import torch
 from gym import spaces
 from src.board.board_class import Board
 from src.players.player import Player
-from src.moves.handle_moves import execute_move_on_board_copy
+from src.moves.handle_moves import execute_full_move_on_board_copy
 from src.moves.get_all_moves import get_all_possible_moves
 from src.ai.batching import (
     apply_moves_and_get_features_in_batch,
@@ -144,7 +144,7 @@ class BackgammonEnv(gym.Env):
 
         # Execute the Selected Move by applying the corresponding FullMove
         selected_move = self.legal_moves[action]
-        self.board = execute_move_on_board_copy(
+        self.board = execute_full_move_on_board_copy(
             self.board, selected_move, self.current_player
         )
 
@@ -203,7 +203,7 @@ class BackgammonEnv(gym.Env):
         # Generate legal board features for the action mask
         if self.legal_moves:
             self.legal_board_features = apply_moves_and_get_features_in_batch(
-                self.board, self.legal_moves, self.current_player, device=self.device
+                self.board, self.legal_moves, self.current_player
             )
         else:
             self.legal_board_features = torch.empty(

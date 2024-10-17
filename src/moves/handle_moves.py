@@ -3,6 +3,7 @@ from src.board.board_class import Board
 from src.moves.move_types import FullMove, SubMove
 from src.players.player import Player
 from src.moves.move_logic import get_moves_with_one_die
+from src.moves.handle_moves import execute_sub_move_on_board
 
 PLAYER_TO_INDEX = {
     Player.PLAYER1: 0,
@@ -27,7 +28,7 @@ def handle_non_doubles(
 
     # Check if all second die moves are empty
     for initial_move in first_die_moves:
-        resulting_board = execute_move_on_board_copy(
+        resulting_board = execute_sub_move_on_board(
             board=board, sub_move=initial_move, player=player
         )
         second_die_moves = get_moves_with_one_die(
@@ -40,7 +41,7 @@ def handle_non_doubles(
 
     for initial_move in first_die_moves:
         # Apply the initial move and get the resulting board state
-        resulting_board = execute_move_on_board_copy(
+        resulting_board = execute_sub_move_on_board(
             board=board, sub_move=initial_move, player=player
         )
         # Generate all possible moves for the second die roll based on the resulting board
@@ -54,7 +55,7 @@ def handle_non_doubles(
             )
         else:
             for follow_up_move in second_die_moves:
-                board_after_second_move = execute_move_on_board_copy(
+                board_after_second_move = execute_sub_move_on_board(
                     board=resulting_board, sub_move=follow_up_move, player=player
                 )
                 add_unique_board(
@@ -75,14 +76,14 @@ def handle_doubles(
 ):
     single_die_moves = get_moves_with_one_die(board, die_value, player)
     for first_move in single_die_moves:
-        first_board = execute_move_on_board_copy(board, first_move, player)
+        first_board = execute_sub_move_on_board(board, first_move, player)
         second_die_moves = get_moves_with_one_die(first_board, die_value, player)
         if not second_die_moves and len(single_die_moves) == 1:
             add_unique_board(
                 first_board, [first_move], full_moves, unique_boards, player
             )
         for second_move in second_die_moves:
-            second_board = execute_move_on_board_copy(first_board, second_move, player)
+            second_board = execute_sub_move_on_board(first_board, second_move, player)
             third_die_moves = get_moves_with_one_die(second_board, die_value, player)
             if not third_die_moves and len(second_die_moves) == 1:
                 add_unique_board(
@@ -93,7 +94,7 @@ def handle_doubles(
                     player,
                 )
             for third_move in third_die_moves:
-                third_board = execute_move_on_board_copy(
+                third_board = execute_sub_move_on_board(
                     second_board, third_move, player
                 )
                 fourth_die_moves = get_moves_with_one_die(
@@ -108,7 +109,7 @@ def handle_doubles(
                         player,
                     )
                 for fourth_move in fourth_die_moves:
-                    final_board = execute_move_on_board_copy(
+                    final_board = execute_sub_move_on_board(
                         third_board, fourth_move, player
                     )
                     add_unique_board(
@@ -120,41 +121,39 @@ def handle_doubles(
                     )
 
 
-def execute_move_on_board_copy(
-    board: Board, sub_move: SubMove, player: Player
+def execute_full_move_on_board_copy(
+    board: Board, full_move: FullMove, player: Player
 ) -> Board:
     """
-    Executes a sub-move on a copy of the board.
-
-    Parameters:
-    - board (Board): The current board state.
-    - sub_move (SubMove): The sub-move to execute.
-    - player (Player): The player making the move.
-
-    Returns:
-    - Board: The new board state after applying the move.
+    Executes a full move (composed of sub-moves) on a copy of the board.
     """
     board_copy = board.copy()
-    move = sub_move
+    for sub_move in full_move.sub_move_commands:
+        execute_sub_move_on_board(board_copy, sub_move, player)
+    return board_copy
+
+
+def execute_sub_move_on_board(board: Board, sub_move: SubMove, player: Player):
+    """
+    Executes a sub-move on the board.
+    """
     player_idx = PLAYER_TO_INDEX[player]
     opponent_idx = 1 - player_idx
 
     # Remove the checker from the start index
-    board_copy.remove_checker(move.start_index, player)
+    board.remove_checker(sub_move.start_index, player)
 
-    if move.hits_blot:
+    if sub_move.hits_blot:
         # Remove opponent's checker from the end index and place it on the bar
-        board_copy.points[opponent_idx, move.end_index] -= 1
-        board_copy.bar[opponent_idx] += 1
+        board.points[opponent_idx, sub_move.end_index] -= 1
+        board.bar[opponent_idx] += 1
 
     # Add the checker to the end index or bear off
-    if move.end_index == -2:
+    if sub_move.end_index == -2:
         # Bear off
-        board_copy.borne_off[player_idx] += 1
+        board.borne_off[player_idx] += 1
     else:
-        board_copy.add_checker(move.end_index, player)
-
-    return board_copy
+        board.add_checker(sub_move.end_index, player)
 
 
 def board_hash(board: Board) -> int:

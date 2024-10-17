@@ -8,12 +8,10 @@ from src.board.board_class import Board
 from src.players.player import Player
 from src.moves.move_types import SubMove, FullMove
 from src.moves.get_all_moves import get_all_possible_moves
-from src.moves.handle_moves import execute_move_on_board_copy
+from src.moves.handle_moves import execute_sub_move_on_board
 from src.moves.get_all_dice_rolls import get_all_dice_rolls_tensor
 
 # from src.utils.dice import get_all_dice_rolls
-
-# generate_all_board_features_non_batch, get_all_dice_rolls, execute_move_on_board_copy
 
 
 # Placeholder evaluation function
@@ -78,7 +76,7 @@ def expectiminimax_alpha_beta(
                 # Apply the move to get the new board state
                 new_board = copy.deepcopy(board)
                 for sub_move in move.sub_move_commands:
-                    new_board = execute_move_on_board_copy(
+                    new_board = execute_sub_move_on_board_copy(
                         board=new_board, sub_move=sub_move, player=current_player
                     )
                 # Recurse with reduced depth
@@ -123,7 +121,7 @@ def expectiminimax_alpha_beta(
                 # Apply the move to get the new board state
                 new_board = copy.deepcopy(board)
                 for sub_move in move.sub_move_commands:
-                    new_board = execute_move_on_board_copy(
+                    new_board = execute_sub_move_on_board_copy(
                         board=new_board, sub_move=sub_move, player=opponent
                     )
                 # Recurse with reduced depth
@@ -174,7 +172,7 @@ def choose_best_move(board: Board, current_player: Player) -> FullMove:
             # Apply the move to get the new board state
             new_board = copy.deepcopy(board)
             for sub_move in move.sub_move_commands:
-                new_board = execute_move_on_board_copy(
+                new_board = execute_sub_move_on_board_copy(
                     board=new_board, sub_move=sub_move, player=current_player
                 )
             # Evaluate the move using Expectiminimax

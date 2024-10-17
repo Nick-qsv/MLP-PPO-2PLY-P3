@@ -7,7 +7,7 @@ from .move_generation import get_all_possible_moves
 from src.board.board_class import Board
 from src.players.player import Player
 from src.moves.move_types import FullMove
-from src.moves.handle_moves import execute_move_on_board_copy
+from src.moves.handle_moves import execute_sub_move_on_board
 
 import copy
 from typing import List
@@ -37,7 +37,7 @@ def generate_all_board_features_non_batch(
     for full_move in legal_moves:
         board_copy = copy.copy(board)
         for sub_move in full_move.sub_move_commands:
-            board_copy = execute_move_on_board_copy(
+            board_copy = execute_sub_move_on_board(
                 board=board_copy, sub_move=sub_move, player=current_player
             )
         features = board_copy.get_board_features(current_player)
