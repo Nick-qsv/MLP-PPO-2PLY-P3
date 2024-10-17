@@ -3,7 +3,6 @@ from src.board.board_class import Board
 from src.moves.move_types import FullMove, SubMove
 from src.players.player import Player
 from src.moves.move_logic import get_moves_with_one_die
-from src.moves.handle_moves import execute_sub_move_on_board
 
 PLAYER_TO_INDEX = {
     Player.PLAYER1: 0,
@@ -133,7 +132,7 @@ def execute_full_move_on_board_copy(
     return board_copy
 
 
-def execute_sub_move_on_board(board: Board, sub_move: SubMove, player: Player):
+def execute_sub_move_on_board(board: Board, sub_move: SubMove, player: Player) -> Board:
     """
     Executes a sub-move on the board.
     """
@@ -154,6 +153,7 @@ def execute_sub_move_on_board(board: Board, sub_move: SubMove, player: Player):
         board.borne_off[player_idx] += 1
     else:
         board.add_checker(sub_move.end_index, player)
+    return board
 
 
 def board_hash(board: Board) -> int:
