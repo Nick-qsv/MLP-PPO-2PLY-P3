@@ -57,7 +57,10 @@ def train_agent():
                     # Record the episode reward and win
                     recent_rewards.append(episode_rewards[i].item())
                     info = infos[i]
-                    if "winner" in info and info["winner"] == agent.current_player:
+                    if (
+                        "winner" in info
+                        and info["winner"] == infos[i]["current_player"]
+                    ):
                         recent_wins.append(1)
                     else:
                         recent_wins.append(0)

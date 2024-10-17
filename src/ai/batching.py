@@ -39,19 +39,8 @@ def generate_all_board_features(
 def apply_moves_and_get_features_in_batch(
     board: Board, legal_moves: List[FullMove], current_player: Player
 ) -> torch.Tensor:
-    """
-    Applies moves in batch and generates features using tensor operations.
-
-    Parameters:
-    - board (Board): The current board state.
-    - legal_moves (List[FullMove]): A list of legal moves to apply.
-    - current_player (Player): The player making the moves.
-
-    Returns:
-    - torch.Tensor: A tensor of shape (batch_size, 198) containing feature vectors.
-    """
     N = len(legal_moves)
-    device = board.points.device  # Get device from board
+    device = board.points.device
 
     if N == 0:
         return torch.empty((0, 198), dtype=torch.float32, device=device)
@@ -61,13 +50,16 @@ def apply_moves_and_get_features_in_batch(
     bar_batch = board.bar.unsqueeze(0).expand(N, -1).clone()
     borne_off_batch = board.borne_off.unsqueeze(0).expand(N, -1).clone()
 
-    # Since M varies, find the maximum number of sub-moves
-    M = max(len(move.sub_move_commands) for move in legal_moves)
+    # Since M is consistent, no need for padding
+    M = len(legal_moves[0].sub_move_commands)
+    assert all(
+        len(move.sub_move_commands) == M for move in legal_moves
+    ), "Inconsistent M in batch"
 
-    # Initialize tensors with default values
-    start_indices = torch.full((N, M), BAR_INDEX, dtype=torch.int64, device=device)
-    end_indices = torch.full((N, M), BEAR_OFF_INDEX, dtype=torch.int64, device=device)
-    hits_blot = torch.zeros((N, M), dtype=torch.bool, device=device)
+    # Initialize tensors
+    start_indices = torch.empty((N, M), dtype=torch.int64, device=device)
+    end_indices = torch.empty((N, M), dtype=torch.int64, device=device)
+    hits_blot = torch.empty((N, M), dtype=torch.bool, device=device)
 
     # Collect sub-move data into tensors
     for i, move in enumerate(legal_moves):
@@ -103,31 +95,19 @@ def apply_sub_moves_in_batch(
     hits_blot: torch.Tensor,
     current_player: Player,
 ):
-    """
-    Applies sub-moves in batch to the batched board tensors.
-
-    Parameters:
-    - points_batch (torch.Tensor): Batched tensor of points. Shape: (N, 2, 24)
-    - bar_batch (torch.Tensor): Batched tensor of bar counts. Shape: (N, 2)
-    - borne_off_batch (torch.Tensor): Batched tensor of borne off counts. Shape: (N, 2)
-    - start_indices (torch.Tensor): Tensor of start indices for sub-moves. Shape: (N, M)
-    - end_indices (torch.Tensor): Tensor of end indices for sub-moves. Shape: (N, M)
-    - hits_blot (torch.Tensor): Tensor indicating if each sub-move hits a blot. Shape: (N, M)
-    - current_player (Player): The player making the moves.
-    """
     N, M = start_indices.shape
-    device = points_batch.device  # Use the device of points_batch
+    device = points_batch.device
 
     player_idx = PLAYER_TO_INDEX[current_player]
     opponent_idx = 1 - player_idx
     batch_indices = torch.arange(N, device=device)
 
-    # Loop over each sub-move index (since M is small, at most 4)
+    # Loop over each sub-move index
     for s in range(M):
         # Extract the s-th sub-move for all moves in the batch
-        start_index_s = start_indices[:, s]  # Shape: (N,)
-        end_index_s = end_indices[:, s]  # Shape: (N,)
-        hits_blot_s = hits_blot[:, s]  # Shape: (N,)
+        start_index_s = start_indices[:, s]
+        end_index_s = end_indices[:, s]
+        hits_blot_s = hits_blot[:, s]
 
         # Remove checker from start index
         remove_from_bar_mask = start_index_s == BAR_INDEX
@@ -148,10 +128,6 @@ def apply_sub_moves_in_batch(
         if hits_blot_s.any():
             batch_idx_hits = batch_indices[hits_blot_s]
             end_idx_hits = end_index_s[hits_blot_s]
-            # Ensure end indices are valid
-            valid_hits_mask = (end_idx_hits >= 0) & (end_idx_hits < 24)
-            if not valid_hits_mask.all():
-                raise ValueError("Invalid end indices in hitting blot")
             points_batch[batch_idx_hits, opponent_idx, end_idx_hits] -= 1
             bar_batch[batch_idx_hits, opponent_idx] += 1
 

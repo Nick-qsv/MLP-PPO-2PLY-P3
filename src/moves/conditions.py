@@ -3,14 +3,7 @@
 from typing import List
 from src.board.board_class import Board
 from src.players.player import Player
-from src.board.point_state import PointState
-
-NUMBER_OF_POINTS = 24
-
-PLAYER_TO_INDEX = {
-    Player.PLAYER1: 0,
-    Player.PLAYER2: 1,
-}
+from src.constants import PLAYER_TO_INDEX, BEAR_OFF_INDEX, NUMBER_OF_POINTS
 
 
 def valid_move(destination_idx: int, player: Player, board: Board) -> bool:
