@@ -3,7 +3,7 @@ from src.environment.backgammon_env import BackgammonEnv
 
 
 class VectorizedBackgammonEnv:
-    def __init__(self, num_envs=5, match_length=15, max_legal_moves=500, device=None):
+    def __init__(self, num_envs=1, match_length=15, max_legal_moves=500, device=None):
         self.num_envs = num_envs
         self.device = device if device is not None else torch.device("cpu")
         self.envs = [
