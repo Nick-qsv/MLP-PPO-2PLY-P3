@@ -50,11 +50,31 @@ def apply_moves_and_get_features_in_batch(
     bar_batch = board.bar.unsqueeze(0).expand(N, -1).clone()
     borne_off_batch = board.borne_off.unsqueeze(0).expand(N, -1).clone()
 
-    # Since M is consistent, no need for padding
-    M = len(legal_moves[0].sub_move_commands)
-    assert all(
-        len(move.sub_move_commands) == M for move in legal_moves
-    ), "Inconsistent M in batch"
+    # Check for consistent M
+    M_list = [len(move.sub_move_commands) for move in legal_moves]
+    M = M_list[0]
+    if not all(m == M for m in M_list):
+        print("\nInconsistent M in batch detected.")
+        # Print available moves
+        print("\nAvailable moves:")
+        for i, move in enumerate(legal_moves):
+            # Generate the description for each SubMove
+            moves_description = ", ".join(
+                f"[{'bar' if sub_move.start_index == BAR_INDEX else sub_move.start_index}, "
+                f"{'off' if sub_move.end_index == BEAR_OFF_INDEX else sub_move.end_index}, "
+                f"{'*' if sub_move.hits_blot else '-'}]"
+                for sub_move in move.sub_move_commands
+            )
+
+            # Format the full move string
+            full_move_str = f"Full Move ({move.player.name}): {moves_description}"
+
+            # Print the formatted move
+            print(f"Move {i}: {full_move_str}")
+
+        print("=== get_all_possible_moves Test Completed ===\n")
+        # Raise an error or handle accordingly
+        raise ValueError("Inconsistent number of SubMoves (M) in batch.")
 
     # Initialize tensors
     start_indices = torch.empty((N, M), dtype=torch.int64, device=device)

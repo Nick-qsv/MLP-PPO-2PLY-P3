@@ -7,7 +7,10 @@ from .move_generation import get_all_possible_moves
 from src.board.board_class import Board
 from src.players.player import Player
 from src.moves.move_types import FullMove
-from src.moves.handle_moves import execute_sub_move_on_board
+from src.moves.handle_moves import (
+    execute_sub_move_on_board,
+    execute_full_move_on_board_copy,
+)
 
 import copy
 from typing import List
@@ -45,3 +48,35 @@ def generate_all_board_features_non_batch(
 
     feature_tensor = torch.tensor(feature_vectors, dtype=torch.float32)
     return feature_tensor
+
+
+def generate_all_board_features(
+    board: Board, current_player: Player, full_moves: List[FullMove]
+) -> torch.Tensor:
+    """
+    Generates a tensor of all possible board features based on provided legal moves,
+    by processing each move iteratively.
+
+    Parameters:
+    - board (Board): The current board state.
+    - current_player (Player): The player for whom to generate features.
+    - full_moves (List[FullMove]): The list of legal full moves.
+
+    Returns:
+    - torch.Tensor: A tensor containing feature vectors for each possible move.
+      Shape: (number_of_legal_moves, 198)
+    """
+    if not full_moves:
+        return torch.empty((0, 198), dtype=torch.float32, device=board.device)
+
+    features_list = []
+    for move in full_moves:
+        # Make a copy of the board and apply the move
+        board_copy = execute_full_move_on_board_copy(board, move, current_player)
+        # Generate features for the new board state
+        features = board_copy.get_board_features(current_player)
+        features_list.append(features)
+
+    # Stack all feature vectors into a single tensor
+    features_tensor = torch.stack(features_list)
+    return features_tensor

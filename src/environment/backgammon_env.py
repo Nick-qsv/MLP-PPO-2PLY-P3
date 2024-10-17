@@ -6,9 +6,7 @@ from src.board.board_class import Board
 from src.players.player import Player
 from src.moves.handle_moves import execute_full_move_on_board_copy
 from src.moves.get_all_moves import get_all_possible_moves
-from src.ai.batching import (
-    apply_moves_and_get_features_in_batch,
-)
+from src.ai.feature_extraction import generate_all_board_features
 
 PLAYER_TO_INDEX = {
     Player.PLAYER1: 0,
@@ -201,14 +199,15 @@ class BackgammonEnv(gym.Env):
         )
 
         # Generate legal board features for the action mask
-        if self.legal_moves:
-            self.legal_board_features = apply_moves_and_get_features_in_batch(
-                self.board, self.legal_moves, self.current_player
+        self.legal_board_features = (
+            generate_all_board_features(
+                board=self.board,
+                current_player=self.current_player,
+                full_moves=self.legal_moves,
             )
-        else:
-            self.legal_board_features = torch.empty(
-                (0, 198), dtype=torch.float32, device=self.device
-            )
+            if self.legal_moves
+            else torch.empty((0, 198), dtype=torch.float32, device=self.device)
+        )
 
         num_moves = self.legal_board_features.size(0)
         if num_moves > self.max_legal_moves:
