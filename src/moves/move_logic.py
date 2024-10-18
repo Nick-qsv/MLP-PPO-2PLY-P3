@@ -139,81 +139,120 @@ def get_moves_bar(
     return moves
 
 
-def get_moves_bear_off(board: Board, die_value: int, player: Player) -> List[SubMove]:
+def get_moves_bear_off(
+    board: ImmutableBoard, die_value: int, player: Player
+) -> List[SubMove]:
+    """
+    Generates all valid bear-off sub-moves for the player based on the die value.
+
+    This function first finds all normal moves within the player's home board.
+    It then identifies the farthest checker from the exit point and handles
+    bear-off moves accordingly, ensuring no duplicate moves are added.
+
+    Args:
+        board (ImmutableBoard): The current state of the board.
+        die_value (int): The value of the die rolled.
+        player (Player): The player for whom to generate bear-off moves.
+
+    Returns:
+        List[SubMove]: A list of valid SubMove instances for bearing off.
+    """
     move_set = []
-    player_idx = PLAYER_TO_INDEX[player]
+    player_idx = player.value  # 0 for PLAYER1, 1 for PLAYER2
 
+    # Define home board indices and movement direction based on player
     if player == Player.PLAYER1:
-        home_indexes = list(range(18, 24))
-        direction = 1
-        last_checker_idx = 18
+        home_indexes = list(range(18, 24))  # PLAYER1's home board: points 18-23
+        direction = 1  # Moving towards higher indices
+        last_checker_idx = 18  # Initialize with the first home point
     else:
-        home_indexes = list(range(0, 6))
-        direction = -1
-        last_checker_idx = 5
+        home_indexes = list(range(0, 6))  # PLAYER2's home board: points 0-5
+        direction = -1  # Moving towards lower indices
+        last_checker_idx = 5  # Initialize with the last home point
 
-    # Normal moves within the home board
+    # 1. Normal moves within the home board
     for idx in home_indexes:
-        own_checkers = board.points[player_idx, idx].item()
+        own_checkers = board.tensor[player_idx, idx].item()
         if own_checkers > 0:
             destination_idx = idx + die_value * direction
-            if valid_move(destination_idx=destination_idx, player=player, board=board):
-                sub_move = SubMove(
-                    start_index=idx,
-                    end_index=destination_idx,
-                    hits_blot=check_if_blot(
+            # Ensure destination is within the board for normal moves (exclude bear-off)
+            if 0 <= destination_idx < NUMBER_OF_POINTS:
+                if valid_move(
+                    destination_idx=destination_idx, player=player, board=board
+                ):
+                    # Determine if the destination has a blot to hit
+                    hits_blot = check_if_blot(
                         index=destination_idx, player=player, board=board
-                    ),
-                )
-                move_set.append(sub_move)
+                    )
 
-    # Find the index of the farthest checker from the exit point (last checker)
+                    # Create SubMove with Position enums
+                    start_position = Position(idx)
+                    end_position = Position(destination_idx)
+
+                    sub_move = SubMove(
+                        start=start_position, end=end_position, hits_blot=hits_blot
+                    )
+                    move_set.append(sub_move)
+
+    # 2. Find the index of the farthest checker from the exit point (last checker)
     if player == Player.PLAYER1:
-        exit_range = range(18, 24)
-        for idx in exit_range:
-            if board.points[player_idx, idx].item() > 0:
+        # Iterate from lowest to highest index in home board to find the first occupied point
+        for idx in home_indexes:
+            if board.tensor[player_idx, idx].item() > 0:
                 last_checker_idx = idx
                 break
     else:
-        exit_range = range(5, -1, -1)
-        for idx in exit_range:
-            if board.points[player_idx, idx].item() > 0:
+        # Iterate from highest to lowest index in home board to find the first occupied point
+        for idx in reversed(home_indexes):
+            if board.tensor[player_idx, idx].item() > 0:
                 last_checker_idx = idx
                 break
 
-    # Handle bear-off moves
+    # 3. Handle bear-off moves
     if player == Player.PLAYER1:
-        if last_checker_idx + die_value * direction >= 24:
+        # Standard bear-off move: Check if the farthest checker can bear off
+        if last_checker_idx + die_value * direction >= NUMBER_OF_POINTS:
             sub_move = SubMove(
-                start_index=last_checker_idx, end_index=BEAR_OFF_INDEX, hits_blot=False
+                start=Position(last_checker_idx),
+                end=Position.BEAR_OFF,
+                hits_blot=False,  # Bearing off does not hit blots
             )
             move_set.append(sub_move)
 
-        potential_start_index = 24 - die_value
+        # Potential special bear-off move
+        potential_start_index = NUMBER_OF_POINTS - die_value
         if potential_start_index != last_checker_idx:
-            if board.points[player_idx, potential_start_index].item() > 0:
-                sub_move = SubMove(
-                    start_index=potential_start_index,
-                    end_index=BEAR_OFF_INDEX,
-                    hits_blot=False,
-                )
-                move_set.append(sub_move)
+            # Ensure potential_start_index is within home board
+            if potential_start_index in home_indexes:
+                if board.tensor[player_idx, potential_start_index].item() > 0:
+                    sub_move = SubMove(
+                        start=Position(potential_start_index),
+                        end=Position.BEAR_OFF,
+                        hits_blot=False,
+                    )
+                    move_set.append(sub_move)
     else:
+        # Standard bear-off move: Check if the farthest checker can bear off
         if last_checker_idx + die_value * direction < 0:
             sub_move = SubMove(
-                start_index=last_checker_idx, end_index=BEAR_OFF_INDEX, hits_blot=False
+                start=Position(last_checker_idx),
+                end=Position.BEAR_OFF,
+                hits_blot=False,  # Bearing off does not hit blots
             )
             move_set.append(sub_move)
 
+        # Potential special bear-off move
         potential_start_index = die_value - 1
         if potential_start_index != last_checker_idx:
-            if board.points[player_idx, potential_start_index].item() > 0:
-                sub_move = SubMove(
-                    start_index=potential_start_index,
-                    end_index=BEAR_OFF_INDEX,
-                    hits_blot=False,
-                )
-                move_set.append(sub_move)
+            # Ensure potential_start_index is within home board
+            if potential_start_index in home_indexes:
+                if board.tensor[player_idx, potential_start_index].item() > 0:
+                    sub_move = SubMove(
+                        start=Position(potential_start_index),
+                        end=Position.BEAR_OFF,
+                        hits_blot=False,
+                    )
+                    move_set.append(sub_move)
 
     return move_set
 
