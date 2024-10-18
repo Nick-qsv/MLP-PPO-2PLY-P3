@@ -2,9 +2,7 @@ import gym
 import numpy as np
 import torch
 from gym import spaces
-from src.board.board_class import Board
 from src.players.player import Player
-from src.moves.handle_moves import execute_full_move_on_board_copy
 from src.moves.get_all_moves import get_all_possible_moves
 from src.ai.feature_extraction import generate_all_board_features
 
