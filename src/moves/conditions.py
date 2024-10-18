@@ -1,9 +1,5 @@
-# backgammon/moves/conditions.py
-
-from typing import List
-from src.board.board_class import Board
 from src.players.player import Player
-from src.constants import PLAYER_TO_INDEX, BEAR_OFF_INDEX, NUMBER_OF_POINTS
+from src.constants import NUMBER_OF_POINTS
 from src.board.immutable_board import ImmutableBoard
 from src.moves.move_types import Position
 
@@ -132,7 +128,7 @@ def all_checkers_home(board: ImmutableBoard, player: Player) -> bool:
     player_idx = player.value  # Player's index
     total_checkers = 0
 
-    for idx in range(24):  # Iterate over all points
+    for idx in range(NUMBER_OF_POINTS):  # Iterate over all points
         num_checkers = board.tensor[player_idx, idx].item()
         if num_checkers > 0:
             if idx in home_range:
