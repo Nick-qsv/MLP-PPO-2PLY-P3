@@ -15,8 +15,13 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class ImmutableBoard:
-    tensor: torch.Tensor  # Shape: (4, 24), dtype: torch.int8
+    tensor: torch.Tensor
 
+    # Shape: (4, 24), dtype: torch.int8
+    # Channel 0: Number of checkers for Player 1 on each of the 24 points.
+    # Channel 1: Number of checkers for Player 2 on each of the 24 points.
+    # Channel 2: Number of checkers on the bar (index 0 for Player 1, index 1 for Player 2).
+    # Channel 3: Number of borne-off checkers (index 0 for Player 1, index 1 for Player 2).
     @staticmethod
     def initial_board(device: torch.device) -> "ImmutableBoard":
         tensor = torch.zeros((4, 24), dtype=torch.int8, device=device)
