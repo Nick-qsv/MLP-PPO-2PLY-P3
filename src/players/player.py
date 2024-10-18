@@ -1,12 +1,12 @@
 # backgammon/players/player.py
 
-from enum import Enum, auto
+from enum import IntEnum
 
 
-class Player(Enum):
+class Player(IntEnum):
     """
-    An enumeration to represent the players.
+    An enumeration to represent the players with a simple integer value for each player.
     """
 
-    PLAYER1 = auto()
-    PLAYER2 = auto()
+    PLAYER1 = 0
+    PLAYER2 = 1
