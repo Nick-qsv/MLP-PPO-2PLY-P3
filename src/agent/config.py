@@ -1,7 +1,7 @@
 import os
 
 # Hyperparameters
-NUM_ENVS = 1
+NUM_ENVS = 50
 NUM_UPDATES = 10_000  # Adjust as needed
 T_HORIZON = 2048  # Number of steps to collect before an update
 NUM_EPOCHS = 4

@@ -4,12 +4,13 @@ import torch
 from gym import spaces
 from src.players.player import Player
 from src.moves.get_all_moves import get_all_possible_moves
-from src.ai.feature_extraction import generate_all_board_features
-
-PLAYER_TO_INDEX = {
-    Player.PLAYER1: 0,
-    Player.PLAYER2: 1,
-}
+from src.ai.batching import generate_all_board_features
+from src.board.immutable_board import (
+    ImmutableBoard,
+    execute_full_move_on_board_copy,
+)
+from src.moves.move_types import Position
+from typing import Dict
 
 TOKEN = {
     Player.PLAYER1: "●",  # Example token for Player 1
@@ -26,11 +27,9 @@ REWARD_WIN_NORMAL = 1.0
 REWARD_WIN_GAMMON = 1.5
 REWARD_WIN_BACKGAMMON = 2.0
 
-# Token Representation for Players
-TOKEN = {
-    Player.PLAYER1: "H",  # Representing PLAYER1 with "H"
-    Player.PLAYER2: "A",  # Representing PLAYER2 with "A"
-}
+
+def get_opponent(player: Player) -> Player:
+    return Player.PLAYER2 if player == Player.PLAYER1 else Player.PLAYER1
 
 
 class BackgammonEnv(gym.Env):
@@ -40,13 +39,16 @@ class BackgammonEnv(gym.Env):
         super(BackgammonEnv, self).__init__()
 
         self.match_length = match_length
-        self.player_scores = {Player.PLAYER1: 0, Player.PLAYER2: 0}
+        self.player_scores: Dict[Player, int] = {
+            Player.PLAYER1: 0,
+            Player.PLAYER2: 0,
+        }
         self.current_match_winner = None
 
         # Set the device
         self.device = device if device is not None else torch.device("cpu")
 
-        self.board = Board(device=self.device)
+        self.board = ImmutableBoard.initial_board(device=self.device)
         self.current_player = Player.PLAYER1
         self.game_over = False
         self.match_over = False
@@ -80,7 +82,7 @@ class BackgammonEnv(gym.Env):
             self.current_match_winner = None
 
         # Reset the board
-        self.board = Board(device=self.device)
+        self.board = ImmutableBoard.initial_board(device=self.device)
         self.game_over = False
 
         # Alternate starting player
@@ -140,12 +142,10 @@ class BackgammonEnv(gym.Env):
 
         # Execute the Selected Move by applying the corresponding FullMove
         selected_move = self.legal_moves[action]
-        self.board = execute_full_move_on_board_copy(
-            self.board, selected_move, self.current_player
-        )
+        self.board = execute_full_move_on_board_copy(self.board, selected_move)
 
         # Check for game over
-        if self.board.borne_off[PLAYER_TO_INDEX[self.current_player]] == 15:
+        if self.board.tensor[3, self.current_player.value].item() == 15:
             # Winning conditions
             is_backgammon = self.check_for_backgammon(self.current_player)
             is_gammon = False
@@ -249,12 +249,8 @@ class BackgammonEnv(gym.Env):
         points = []
         colors = []
         for point_idx in range(24):
-            player1_checkers = self.board.points[
-                PLAYER_TO_INDEX[Player.PLAYER1], point_idx
-            ].item()
-            player2_checkers = self.board.points[
-                PLAYER_TO_INDEX[Player.PLAYER2], point_idx
-            ].item()
+            player1_checkers = self.board.tensor[Player.PLAYER1.value, point_idx].item()
+            player2_checkers = self.board.tensor[Player.PLAYER2.value, point_idx].item()
 
             if player1_checkers > 0 and player2_checkers > 0:
                 # This should not happen in Backgammon. Handle as an error or decide on precedence.
@@ -311,12 +307,12 @@ class BackgammonEnv(gym.Env):
         )
 
     def print_half_board(self, half_board, checkers_color, player, reversed_=False):
-        player_idx = PLAYER_TO_INDEX[player]
+        player_idx = player.value
 
         # Determine the maximum number of checkers in this half-board, bar, or borne_off
         max_half = max(half_board) if half_board else 0
-        max_bar = self.board.bar[player_idx].item()
-        max_borne_off = self.board.borne_off[player_idx].item()
+        max_bar = self.board.tensor[player_idx, Position.BAR.value].item()
+        max_borne_off = self.board.tensor[player_idx, Position.BEAR_OFF.value].item()
         max_length = max(max_half, max_bar, max_borne_off)
 
         # Start printing rows for the current half of the board
@@ -330,10 +326,14 @@ class BackgammonEnv(gym.Env):
                     row.append(" ")
 
             # Bar and Off sections
-            bar = f"{TOKEN[player]}" if self.board.bar[player_idx].item() > i else " "
+            bar = (
+                f"{TOKEN[player]}"
+                if self.board.tensor[player_idx, Position.BAR.value].item() > i
+                else " "
+            )
             off = (
                 f"{TOKEN[player]}"
-                if self.board.borne_off[player_idx].item() > i
+                if self.board.tensor[player_idx, Position.BEAR_OFF.value].item() > i
                 else " "
             )
 
@@ -359,8 +359,9 @@ class BackgammonEnv(gym.Env):
         Checks if the opponent has not borne off any checkers,
         which qualifies as a gammon.
         """
-        opponent = Player.PLAYER2 if player == Player.PLAYER1 else Player.PLAYER1
-        opponent_borne_off = self.board.borne_off[PLAYER_TO_INDEX[opponent]].item()
+        opponent = get_opponent(player)
+        # Correctly access Channel 3 (Borne-off) for the opponent
+        opponent_borne_off = self.board.tensor[3, opponent.value].item()
         return opponent_borne_off == 0
 
     def check_for_backgammon(self, player: Player) -> bool:
@@ -369,11 +370,11 @@ class BackgammonEnv(gym.Env):
         has checkers either in the player's home board or on the bar,
         which qualifies as a backgammon.
         """
-        opponent = Player.PLAYER2 if player == Player.PLAYER1 else Player.PLAYER1
-        opponent_idx = PLAYER_TO_INDEX[opponent]
+        opponent = get_opponent(player)
+        opponent_idx = opponent.value
 
-        # Check if opponent has borne off any checkers
-        opponent_borne_off = self.board.borne_off[opponent_idx].item()
+        # Correctly access Channel 3 (Borne-off) for the opponent
+        opponent_borne_off = self.board.tensor[3, opponent_idx].item()
         if opponent_borne_off > 0:
             return False  # Opponent has borne off at least one checker
 
@@ -385,12 +386,15 @@ class BackgammonEnv(gym.Env):
 
         # Check if opponent has any checkers in the player's home board
         for idx in home_board_indices:
-            if self.board.points[opponent_idx, idx].item() > 0:
+            if self.board.tensor[opponent.value, idx].item() > 0:
                 return True  # Opponent has a checker in player's home board
 
-        # Check if opponent has any checkers on the bar
-        opponent_bar = self.board.bar[opponent_idx].item()
+        # Correctly access Channel 2 (Bar) for the opponent
+        opponent_bar = self.board.tensor[2, opponent_idx].item()
         if opponent_bar > 0:
             return True  # Opponent has checkers on the bar
 
         return False  # No checkers in home board or on the bar
+
+
+# do i need to check opponent bar???
