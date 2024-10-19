@@ -1,9 +1,9 @@
 import os
 
 # Hyperparameters
-NUM_ENVS = 10
+NUM_ENVS = 8
 NUM_UPDATES = 1_000  # Adjust as needed
-T_HORIZON = 100  # Number of steps to collect before an update
+T_HORIZON = 512  # Number of steps to collect before an update
 NUM_EPOCHS = 4
 HIDDEN_SIZE = 128
 LEARNING_RATE = 1e-3
