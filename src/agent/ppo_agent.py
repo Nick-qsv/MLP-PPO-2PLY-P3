@@ -459,12 +459,33 @@ class BackgammonPPOAgent:
             self.load_model_local(filename, training)
 
     def log_metrics(self, episode, episode_reward, win):
-        win_rate = sum(self.win_rates[-100:]) / min(len(self.win_rates), 100)
-        avg_loss = sum(self.losses[-100:]) / min(len(self.losses), 100)
-        print(
-            f"*** Episode {episode} | Reward: {episode_reward} | Loss: {avg_loss:.4f} | Win Rate: {win_rate*100:.2f}% ***"
+        # Calculate win rate
+        win_rate = (
+            sum(self.win_rates[-100:]) / min(len(self.win_rates), 100)
+            if self.win_rates
+            else 0.0
         )
+
+        # Check if losses are available before calculating average loss
+        if self.losses:
+            avg_loss = sum(self.losses[-100:]) / min(len(self.losses), 100)
+        else:
+            avg_loss = None  # Default to None or any placeholder like 0 or 'N/A'
+
+        # Print out the metrics
+        if avg_loss is not None:
+            print(
+                f"*** Episode {episode} | Reward: {episode_reward} | Loss: {avg_loss:.4f} | Win Rate: {win_rate*100:.2f}% ***"
+            )
+        else:
+            print(
+                f"*** Episode {episode} | Reward: {episode_reward} | Loss: N/A | Win Rate: {win_rate*100:.2f}% ***"
+            )
 
         # Log win rate to TensorBoard at reduced frequency
         if self.total_episodes % self.LOG_INTERVAL == 0:
             self.writer.add_scalar("Win Rate", win_rate, self.total_episodes)
+
+        # Log loss to TensorBoard only if available
+        if avg_loss is not None:
+            self.writer.add_scalar("Loss/Avg Loss", avg_loss, self.total_episodes)

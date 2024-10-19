@@ -1,4 +1,4 @@
 from .backgammon_env import BackgammonEnv
-from .vec_bg_env import VectorizedBackgammonEnv
+from .vec_bg_env import VectorizedBackgammonEnv, ParallelBackgammonEnv
 
-__all__ = ["BackgammonEnv", "VectorizedBackgammonEnv"]
+__all__ = ["BackgammonEnv", "VectorizedBackgammonEnv", "ParallelBackgammonEnv"]

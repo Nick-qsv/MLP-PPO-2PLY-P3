@@ -1,5 +1,7 @@
 import torch
 from src.environment.backgammon_env import BackgammonEnv
+import torch.multiprocessing as mp
+from multiprocessing import Pipe
 
 
 class VectorizedBackgammonEnv:
@@ -67,3 +69,66 @@ class VectorizedBackgammonEnv:
     def close(self):
         for env in self.envs:
             env.close()
+
+
+class ParallelBackgammonEnv:
+    def __init__(self, num_envs, device):
+        self.num_envs = num_envs
+        self.device = device
+        self.parent_conns, self.child_conns = zip(*[Pipe() for _ in range(num_envs)])
+        self.processes = []
+        for idx in range(num_envs):
+            p = mp.Process(target=self.worker, args=(self.child_conns[idx], device))
+            p.daemon = True
+            p.start()
+            self.processes.append(p)
+        for conn in self.child_conns:
+            conn.close()
+
+    @staticmethod
+    def worker(conn, device):
+        env = BackgammonEnv(match_length=15, max_legal_moves=500, device=device)
+        while True:
+            cmd, data = conn.recv()
+            if cmd == "reset":
+                observation = env.reset()
+                conn.send(observation)
+            elif cmd == "step":
+                action = data
+                observation, reward, done, info = env.step(action)
+                if done:
+                    observation = env.reset()
+                conn.send((observation, reward, done, info))
+            elif cmd == "close":
+                conn.close()
+                break
+
+    def reset(self):
+        for conn in self.parent_conns:
+            conn.send(("reset", None))
+        observations = [conn.recv() for conn in self.parent_conns]
+        return torch.stack(observations).to(self.device)
+
+    def step(self, actions):
+        for conn, action in zip(self.parent_conns, actions):
+            conn.send(("step", action))
+        results = [conn.recv() for conn in self.parent_conns]
+        observations, rewards, dones, infos = zip(*results)
+        observations = torch.stack(observations).to(self.device)
+        rewards = torch.tensor(rewards, dtype=torch.float32, device=self.device)
+        dones = torch.tensor(dones, dtype=torch.bool, device=self.device)
+        return observations, rewards, dones, infos
+
+    def get_action_masks(self):
+        # Implement similar multiprocessing steps if needed
+        action_masks = []
+        for conn in self.parent_conns:
+            conn.send(("get_action_masks", None))
+        action_masks = [conn.recv() for conn in self.parent_conns]
+        return torch.stack(action_masks).to(self.device)
+
+    def close(self):
+        for conn in self.parent_conns:
+            conn.send(("close", None))
+        for p in self.processes:
+            p.join()
