@@ -105,9 +105,6 @@ def handle_non_doubles(
 
                 full_move_of_length_2_possible = True
 
-    if not full_move_of_length_2_possible:
-        logger.warning("No full move of length 2 possible.")
-
 
 def handle_doubles(
     board: ImmutableBoard,

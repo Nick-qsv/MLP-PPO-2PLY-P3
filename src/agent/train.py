@@ -61,22 +61,26 @@ def train_agent():
                     # Record the episode reward and win
                     recent_rewards.append(episode_rewards[i].item())
                     info = infos[i]
-                    if (
-                        "winner" in info
-                        and info["winner"] == infos[i]["current_player"]
-                    ):
+                    if "winner" in info and info["winner"] == info["current_player"]:
                         recent_wins.append(1)
                     else:
                         recent_wins.append(0)
-
                     # Reset per-environment episode data
                     episode_rewards[i] = 0
                     episode_lengths[i] = 0
 
-                    # Log metrics every 1000 episodes
-                    if total_episodes % 10 == 0:
-                        avg_reward = np.mean(recent_rewards[-1000:])
-                        win_rate = np.mean(recent_wins[-1000:])
+                    # Log metrics every 100 episodes
+                    if total_episodes % 100 == 0:
+                        avg_reward = (
+                            np.mean(recent_rewards[-100:])
+                            if len(recent_rewards) >= 100
+                            else np.mean(recent_rewards)
+                        )
+                        win_rate = (
+                            np.mean(recent_wins[-100:])
+                            if len(recent_wins) >= 100
+                            else np.mean(recent_wins)
+                        )
                         agent.win_rates.append(win_rate)
                         agent.log_metrics(total_episodes, avg_reward, win_rate)
 

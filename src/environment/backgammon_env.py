@@ -113,9 +113,12 @@ class BackgammonEnv(gym.Env):
         return observation
 
     def step(self, action):
+        # Initialize the info dictionary with current_player
+        info = {"current_player": self.current_player}
+
         if self.game_over:
             observation = self.reset()
-            return observation, torch.tensor(0.0, device=self.device), True, {}
+            return observation, torch.tensor(0.0, device=self.device), True, info
 
         # Check if there are any legal actions
         if self.action_mask.sum() == 0:
@@ -129,7 +132,12 @@ class BackgammonEnv(gym.Env):
 
             # Get the new observation after passing the turn
             observation = self.get_observation()
-            return observation, reward, done, {"info": "No legal actions, turn passed"}
+            return (
+                observation,
+                reward,
+                done,
+                {**info, "info": "No legal actions, turn passed"},
+            )
 
         # Validate action
         if not self.action_mask[action]:
@@ -138,7 +146,7 @@ class BackgammonEnv(gym.Env):
             done = False
             print(f"Invalid action selected: {action}. Assigned reward: {reward}")
             observation = self.get_observation()
-            return observation, reward, done, {"info": "Invalid action"}
+            return observation, reward, done, {**info, "info": "Invalid action"}
 
         # Execute the Selected Move by applying the corresponding FullMove
         selected_move = self.legal_moves[action]
@@ -161,7 +169,7 @@ class BackgammonEnv(gym.Env):
             else:
                 game_score = 1
                 reward = torch.tensor(REWARD_WIN_NORMAL, device=self.device)
-            info = {"winner": self.current_player, "game_score": game_score}
+            info.update({"winner": self.current_player, "game_score": game_score})
             self.player_scores[self.current_player] += game_score
             self.game_over = True
             done = True
@@ -172,7 +180,6 @@ class BackgammonEnv(gym.Env):
                 self.current_match_winner = self.current_player
                 self.match_over = True
         else:
-            info = {}
             reward = torch.tensor(0.0, device=self.device)
             done = False
             # Pass the turn to the other player
