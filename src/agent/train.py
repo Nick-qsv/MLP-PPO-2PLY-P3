@@ -9,6 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 
 from botocore.config import Config
 from tqdm import tqdm  # For progress bar
+import logging
 from config import *
 from src.environment import VectorizedBackgammonEnv
 from ppo_agent import BackgammonPPOAgent
@@ -16,23 +17,34 @@ from ppo_agent import BackgammonPPOAgent
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(), logging.FileHandler("training.log")],
+)
+logger = logging.getLogger(__name__)
+
 
 def train_agent():
-    print("Entered train_agent function.")
+    logger.info("Entered train_agent function.")
     global total_episodes, total_steps
     recent_rewards = []
     recent_wins = []
     episode_rewards = torch.zeros(NUM_ENVS, device=device)
     episode_lengths = torch.zeros(NUM_ENVS, device=device)
-    print(f"Starting training loop for {NUM_UPDATES} updates.")
+    logger.info(f"Starting training loop for {NUM_UPDATES} updates.")
     for update in tqdm(range(NUM_UPDATES), desc="Training Progress"):
-        print(f"Update {update}: Starting reset of environments.")
+        logger.info(f"Update {update}: Starting reset of environments.")
         observations = envs.reset()  # Already a tensor on device
-        print(f"Update {update}: Environments reset.")
+        logger.info(f"Update {update}: Environments reset.")
 
         agent.memory = []  # Clear memory at the start of each update
+        logger.debug(f"Update {update}: Cleared agent memory.")
 
         for step in range(T_HORIZON):
+            logger.debug(f"Update {update}: Step {step} started.")
+
             # Get action masks
             action_masks = envs.get_action_masks()  # Already a tensor on device
 
@@ -86,6 +98,7 @@ def train_agent():
 
         # After T_HORIZON steps, optimize the model
         agent.update()
+        logger.info(f"Update {update}: Model updated.")
 
         # Optionally log progress to TensorBoard
         agent.writer.add_scalar("Loss/Policy Loss", agent.last_policy_loss, update)
@@ -95,6 +108,7 @@ def train_agent():
         agent.writer.add_scalar("Stats/Total Episodes", total_episodes, update)
         agent.writer.add_scalar("Stats/Total Steps", total_steps, update)
         agent.writer.add_scalar("Stats/Entropy Coefficient", agent.entropy_coef, update)
+        logger.info(f"Update {update}: Logged TensorBoard metrics.")
 
         # Save model periodically
         if update % 25 == 0 and update > 0:
@@ -109,9 +123,9 @@ def train_agent():
 
 if __name__ == "__main__":
     # Initialize the vectorized environment and the PPO agent
-    print("Initializing VectorizedBackgammonEnv...")
+    logger.info("Initializing VectorizedBackgammonEnv...")
     envs = VectorizedBackgammonEnv(num_envs=NUM_ENVS, device=device)
-    print("VectorizedBackgammonEnv initialized.")
+    logger.info("VectorizedBackgammonEnv initialized.")
     agent = BackgammonPPOAgent(
         action_size=envs.action_space.n,
         entropy_coef_start=ENTROPY_COEF_START,
