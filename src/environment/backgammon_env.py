@@ -192,7 +192,7 @@ class BackgammonEnv(gym.Env):
         # Generate legal moves
         self.legal_moves = get_all_possible_moves(
             player=self.current_player,
-            board_copy=self.board,
+            board=self.board,
             roll_result=self.roll_result,
         )
 
@@ -201,7 +201,7 @@ class BackgammonEnv(gym.Env):
             generate_all_board_features(
                 board=self.board,
                 current_player=self.current_player,
-                full_moves=self.legal_moves,
+                legal_moves=self.legal_moves,
             )
             if self.legal_moves
             else torch.empty((0, 198), dtype=torch.float32, device=self.device)
