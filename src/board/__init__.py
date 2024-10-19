@@ -3,7 +3,12 @@
 from .board_state import BoardState
 from .point_state import PointState
 from .owned_state import OwnedState
-from .immutable_board import ImmutableBoard, board_hash, execute_sub_move_on_board
+from .immutable_board import (
+    ImmutableBoard,
+    board_hash,
+    execute_sub_move_on_board,
+    board_to_string,
+)
 
 __all__ = [
     "BoardState",
@@ -12,4 +17,5 @@ __all__ = [
     "ImmutableBoard",
     "board_hash",
     "execute_sub_move_on_board",
+    "board_to_string",
 ]

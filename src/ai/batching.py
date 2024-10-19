@@ -3,10 +3,14 @@ from typing import List
 from src.players.player import Player
 from src.moves.move_types import FullMove, Position
 from src.board.immutable_board import ImmutableBoard, execute_full_move_on_board_copy
+from src.board.immutable_board import board_to_string
 
 
 def generate_all_board_features(
-    board: ImmutableBoard, current_player: Player, legal_moves: List[FullMove]
+    board: ImmutableBoard,
+    current_player: Player,
+    legal_moves: List[FullMove],
+    roll_result: List[int],
 ) -> torch.Tensor:
     """
     Generates a tensor of all possible board features based on legal moves,
@@ -16,6 +20,8 @@ def generate_all_board_features(
     - board (ImmutableBoard): The current board state.
     - current_player (Player): The player for whom to generate features.
     - legal_moves (List[FullMove]): List of possible full moves.
+    - roll_result (List[int]): The result of the dice roll.
+    - board_str (str): String representation of the board.
 
     Returns:
     - torch.Tensor: A tensor containing feature vectors for each possible move.
@@ -29,6 +35,10 @@ def generate_all_board_features(
     M = M_list[0]
     if not all(m == M for m in M_list):
         print("\nInconsistent M in batch detected.")
+        print(f"Roll Result: {roll_result}")
+        print("Board State:")
+        print(board_to_string(board))
+
         # Print available moves
         print("\nAvailable moves:")
         for i, move in enumerate(legal_moves):
@@ -45,6 +55,7 @@ def generate_all_board_features(
 
             # Print the formatted move
             print(f"Move {i}: {full_move_str}")
+
         # Raise an error or handle accordingly
         raise ValueError("Inconsistent number of SubMoves (M) in batch.")
 

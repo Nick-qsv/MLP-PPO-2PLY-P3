@@ -101,7 +101,9 @@ def train_agent():
 
 if __name__ == "__main__":
     # Initialize the vectorized environment and the PPO agent
+    print("Initializing VectorizedBackgammonEnv...")
     envs = VectorizedBackgammonEnv(num_envs=NUM_ENVS, device=device)
+    print("VectorizedBackgammonEnv initialized.")
     agent = BackgammonPPOAgent(
         action_size=envs.action_space.n,
         entropy_coef_start=ENTROPY_COEF_START,

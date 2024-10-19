@@ -244,3 +244,24 @@ def board_hash(board: ImmutableBoard) -> int:
     except Exception as e:
         logger.warning(f"Failed to hash board tensor: {e}")
         return 0  # Return a default hash value in case of failure
+
+
+def board_to_string(board: ImmutableBoard) -> str:
+    tokens = {
+        Player.PLAYER1: "●",
+        Player.PLAYER2: "○",
+    }
+    lines = []
+    for point_idx in range(24):
+        player1_checkers = board.tensor[Player.PLAYER1.value, point_idx].item()
+        player2_checkers = board.tensor[Player.PLAYER2.value, point_idx].item()
+        if player1_checkers > 0 and player2_checkers > 0:
+            cell = "!"
+        elif player1_checkers > 0:
+            cell = tokens[Player.PLAYER1] * player1_checkers
+        elif player2_checkers > 0:
+            cell = tokens[Player.PLAYER2] * player2_checkers
+        else:
+            cell = "-"
+        lines.append(f"{point_idx}: {cell}")
+    return "\n".join(lines)

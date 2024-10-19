@@ -202,6 +202,7 @@ class BackgammonEnv(gym.Env):
                 board=self.board,
                 current_player=self.current_player,
                 legal_moves=self.legal_moves,
+                roll_result=self.roll_result,
             )
             if self.legal_moves
             else torch.empty((0, 198), dtype=torch.float32, device=self.device)
