@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def handle_non_doubles(
+def handle_non_doubles_old(
     board: ImmutableBoard,
     roll: List[int],
     full_moves: List[FullMove],
@@ -104,6 +104,100 @@ def handle_non_doubles(
                 )
 
                 full_move_of_length_2_possible = True
+
+
+def handle_non_doubles(
+    board: ImmutableBoard,
+    roll: List[int],
+    full_moves: List[FullMove],
+    unique_boards: Set[int],
+    player: Player,
+    reverse: bool = False,
+):
+    """
+    Handles move generation for non-double die rolls.
+
+    This function generates all possible move sequences for a player based on two distinct die values.
+    It first determines the order of die application (reversed if specified), generates initial moves
+    using the first die, and then generates subsequent moves using the second die based on the resulting
+    board states. Unique full move sequences are added to the full_moves list.
+
+    Args:
+        board (ImmutableBoard): The current state of the board.
+        roll (List[int]): A list containing two die values.
+        full_moves (List[FullMove]): A list to store all unique full move sequences.
+        unique_boards (Set[int]): A set to keep track of already processed board states.
+        player (Player): The player for whom to generate moves.
+        reverse (bool, optional): If True, reverses the order of die application. Defaults to False.
+    """
+    # Determine the order of dice based on the reverse flag
+    dice_order = [roll[1], roll[0]] if reverse else [roll[0], roll[1]]
+
+    # Generate all possible initial moves using the first die
+    first_die_moves = get_moves_with_one_die(
+        board=board, die_value=dice_order[0], player=player
+    )
+
+    # Flag to check if any two-move sequences are possible
+    two_move_sequences_exist = False
+
+    # Preliminary check to determine if any two-move sequences are possible
+    for initial_move in first_die_moves:
+        resulting_board = execute_sub_move_on_board(
+            board=board, sub_move=initial_move, player=player
+        )
+        second_die_moves = get_moves_with_one_die(
+            board=resulting_board, die_value=dice_order[1], player=player
+        )
+
+        if second_die_moves:
+            two_move_sequences_exist = True
+            break  # No need to check further; at least one two-move sequence exists
+
+    # Iterate through all initial moves to generate full move sequences
+    for initial_move in first_die_moves:
+        # Apply the initial move to get the resulting board state
+        resulting_board = execute_sub_move_on_board(
+            board=board, sub_move=initial_move, player=player
+        )
+
+        # Generate all possible second moves based on the second die
+        second_die_moves = get_moves_with_one_die(
+            board=resulting_board, die_value=dice_order[1], player=player
+        )
+
+        if two_move_sequences_exist:
+            if second_die_moves:
+                # Iterate through all possible second moves
+                for follow_up_move in second_die_moves:
+                    # Apply the follow-up move to get the new board state
+                    board_after_second_move = execute_sub_move_on_board(
+                        board=resulting_board, sub_move=follow_up_move, player=player
+                    )
+
+                    # Record the full move sequence (initial move + follow-up move)
+                    add_unique_board(
+                        board=board_after_second_move,
+                        moves=[initial_move, follow_up_move],
+                        full_moves=full_moves,
+                        unique_boards=unique_boards,
+                        player=player,
+                    )
+            else:
+                # If two_move_sequences_exist but this initial_move doesn't allow second move,
+                # it's still a valid single-move sequence because some initial_move does allow two moves
+                # However, according to standard Backgammon rules, you must use as many moves as possible.
+                # Thus, you should **not** add single-move sequences if any two-move sequence exists.
+                continue
+        else:
+            # No two-move sequences are possible; add single-move sequence
+            add_unique_board(
+                board=resulting_board,
+                moves=[initial_move],
+                full_moves=full_moves,
+                unique_boards=unique_boards,
+                player=player,
+            )
 
 
 def handle_doubles(
