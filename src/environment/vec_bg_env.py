@@ -77,6 +77,14 @@ class ParallelBackgammonEnv:
         self.device = device
         self.parent_conns, self.child_conns = zip(*[Pipe() for _ in range(num_envs)])
         self.processes = []
+        self.envs = [
+            BackgammonEnv(match_length=15, max_legal_moves=500, device=self.device)
+            for _ in range(num_envs)
+        ]
+        # Observation and action spaces (assumed to be the same across all envs)
+        self.observation_space = self.envs[0].observation_space
+        self.action_space = self.envs[0].action_space
+
         for idx in range(num_envs):
             p = mp.Process(target=self.worker, args=(self.child_conns[idx], device))
             p.daemon = True
@@ -90,15 +98,25 @@ class ParallelBackgammonEnv:
         env = BackgammonEnv(match_length=15, max_legal_moves=500, device=device)
         while True:
             cmd, data = conn.recv()
+            print(f"Worker received command: {cmd}")  # Debug print statement
+
             if cmd == "reset":
-                observation = env.reset()
+                observation = env.reset().cpu()
                 conn.send(observation)
             elif cmd == "step":
                 action = data
                 observation, reward, done, info = env.step(action)
                 if done:
                     observation = env.reset()
-                conn.send((observation, reward, done, info))
+                # Move tensors to CPU and convert to standard types
+                conn.send(
+                    (
+                        observation.cpu(),
+                        reward.item(),
+                        done,
+                        info,  # Ensure info is picklable
+                    )
+                )
             elif cmd == "close":
                 conn.close()
                 break
@@ -111,7 +129,8 @@ class ParallelBackgammonEnv:
 
     def step(self, actions):
         for conn, action in zip(self.parent_conns, actions):
-            conn.send(("step", action))
+            print(f"Main process sending action: {action}")  # Debug print statement
+            conn.send(("step", action.item()))
         results = [conn.recv() for conn in self.parent_conns]
         observations, rewards, dones, infos = zip(*results)
         observations = torch.stack(observations).to(self.device)
