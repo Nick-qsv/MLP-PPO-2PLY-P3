@@ -44,7 +44,7 @@ def train_agent():
         print(f"Update {update}: Cleared agent memory.")
 
         for step in range(T_HORIZON):
-            if step % 50 == 0:
+            if step % 10 == 0:
                 print(f"Update {update}: Step {step} started.")
 
             # Get action masks
@@ -113,7 +113,7 @@ def train_agent():
         print(f"Update {update}: Logged TensorBoard metrics.")
 
         # Save model periodically
-        if update % 25 == 0 and update > 0:
+        if update % 10 == 0 and update > 0:
             filename = f"backgammon_ppo_update_{update}.pth"
             agent.save_model(filename=filename, to_s3=True)
             agent.save_model(filename="ppo_backgammon_s3.pth", to_s3=True)
@@ -125,16 +125,16 @@ def train_agent():
 
 if __name__ == "__main__":
     # Initialize the vectorized environment and the PPO agent
-    mp.set_start_method("spawn")
-    # Define device for environments
-    env_device = torch.device("cpu")
-    print("Initializing ParallelBackgammonEnv...")
-    envs = ParallelBackgammonEnv(num_envs=NUM_ENVS, device=env_device)
-    print("ParallelBackgammonEnv initialized.")
+    # mp.set_start_method("spawn")
+    # # Define device for environments
+    # env_device = torch.device("cpu")
+    # print("Initializing ParallelBackgammonEnv...")
+    # envs = ParallelBackgammonEnv(num_envs=NUM_ENVS, device=env_device)
+    # print("ParallelBackgammonEnv initialized.")
 
-    # print("Initializing VectorizedBackgammonEnv...")
-    # envs = VectorizedBackgammonEnv(num_envs=NUM_ENVS, device=device)
-    # print("VectorizedBackgammonEnv initialized.")
+    print("Initializing VectorizedBackgammonEnv...")
+    envs = VectorizedBackgammonEnv(num_envs=NUM_ENVS, device=device)
+    print("VectorizedBackgammonEnv initialized.")
     agent = BackgammonPPOAgent(
         action_size=envs.action_space.n,
         entropy_coef_start=ENTROPY_COEF_START,
