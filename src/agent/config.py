@@ -1,9 +1,9 @@
 import os
 
 # Hyperparameters
-NUM_ENVS = 50
-NUM_UPDATES = 10_000  # Adjust as needed
-T_HORIZON = 256  # Number of steps to collect before an update
+NUM_ENVS = 10
+NUM_UPDATES = 1_000  # Adjust as needed
+T_HORIZON = 100  # Number of steps to collect before an update
 NUM_EPOCHS = 4
 HIDDEN_SIZE = 128
 LEARNING_RATE = 1e-3
@@ -12,8 +12,8 @@ EPS_CLIP = 0.25
 VALUE_LOSS_COEF = 0.5
 ENTROPY_COEF_START = 0.15
 ENTROPY_COEF_END = 0.01
-ENTROPY_ANNEAL_EPISODES = 500_000
-MAX_TIMESTEPS = 500
+ENTROPY_ANNEAL_EPISODES = 250_000
+MAX_TIMESTEPS = 300
 
 # S3 Configuration
 S3_BUCKET_NAME = "bgppomodels"

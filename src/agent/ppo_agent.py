@@ -100,6 +100,12 @@ class BackgammonPPOAgent:
         self.entropy_anneal_episodes = entropy_anneal_episodes
         self.entropy_coef = self.entropy_coef_start  # Initialize entropy coefficient
 
+        # Initialize loss attributes
+        self.last_policy_loss = 0.0
+        self.last_value_loss = 0.0
+        self.last_entropy_loss = 0.0
+        self.last_total_loss = 0.0
+
         # S3 parameters
         self.s3_bucket_name = s3_bucket_name
         self.s3_model_prefix = s3_model_prefix
@@ -220,11 +226,13 @@ class BackgammonPPOAgent:
     def update(self):
         """
         Optimizes the policy network using the collected experiences in memory.
+        Stores the latest policy loss, value loss, entropy loss, and total loss as attributes.
         """
         if not self.memory:
             print("No data to update.")
             return
 
+        # Concatenate all components from memory
         observations = torch.cat(
             [item["observation"] for item in self.memory], dim=0
         ).to(self.device)
@@ -247,6 +255,7 @@ class BackgammonPPOAgent:
             [item["action_mask"] for item in self.memory], dim=0
         ).to(self.device)
 
+        # Compute returns and advantages
         returns = self.compute_returns(rewards, dones)
         returns = torch.tensor(returns, device=self.device).float()
 
@@ -256,16 +265,23 @@ class BackgammonPPOAgent:
         # Compute advantages
         advantages = returns - state_values.detach()
 
-        # Optimize policy and value network
+        # Initialize lists to collect losses across epochs
+        policy_losses = []
+        value_losses = []
+        entropy_losses = []
+        total_losses = []
+
         total_loss = 0
-        for _ in range(NUM_EPOCHS):
+        for epoch in range(NUM_EPOCHS):
             with autocast(device_type=self.device.type):
+                # Forward pass
                 logits, new_state_values = self.policy_network(observations)
                 masked_logits = logits + (action_masks + 1e-45).log()
                 action_probs = torch.softmax(masked_logits, dim=-1)
                 dist = Categorical(action_probs)
                 new_action_log_probs = dist.log_prob(actions.squeeze(-1))
 
+                # Calculate ratios for PPO clipping
                 ratios = torch.exp(
                     new_action_log_probs - action_log_probs.detach().squeeze(-1)
                 )
@@ -276,21 +292,33 @@ class BackgammonPPOAgent:
                 )
                 policy_loss = -torch.min(surr1, surr2).mean()
 
+                # Value function loss
                 value_loss = nn.MSELoss()(new_state_values.squeeze(-1), returns)
 
-                # Update the total loss to include entropy term
+                # Entropy loss for exploration
+                entropy_loss = dist.entropy().mean()
+
+                # Total loss combines policy loss, value loss, and entropy
                 loss = (
                     policy_loss
                     + VALUE_LOSS_COEF * value_loss
-                    - self.entropy_coef * dist.entropy().mean()
+                    - self.entropy_coef * entropy_loss
                 )
 
+            # Backpropagation and optimization
             self.optimizer.zero_grad()
             self.scaler.scale(loss).backward()
             self.scaler.step(self.optimizer)
             self.scaler.update()
 
+            # Accumulate total loss for averaging later
             total_loss += loss.item()
+
+            # Collect losses for logging and attribute storage
+            policy_losses.append(policy_loss.item())
+            value_losses.append(value_loss.item())
+            entropy_losses.append(entropy_loss.item())
+            total_losses.append(loss.item())
 
             # Logging Additional Metrics at Reduced Frequency
             if self.total_steps % self.LOG_INTERVAL == 0:
@@ -329,11 +357,19 @@ class BackgammonPPOAgent:
             # Increment total steps
             self.total_steps += 1
 
-        avg_loss = total_loss / NUM_EPOCHS
-        self.losses.append(avg_loss)
+        # Compute average losses over all epochs and store them as attributes
+        self.last_policy_loss = np.mean(policy_losses)
+        self.last_value_loss = np.mean(value_losses)
+        self.last_entropy_loss = np.mean(entropy_losses)
+        self.last_total_loss = np.mean(total_losses)
+
+        # Optional: Append average total loss to a loss history
+        self.losses.append(total_loss / NUM_EPOCHS)
+
+        # Clear memory after update
         self.memory = []
 
-        # Update entropy coefficient
+        # Update entropy coefficient if using annealing
         self.update_entropy_coef()
 
     def set_training_mode(self, training=True):
