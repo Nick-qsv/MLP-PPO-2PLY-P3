@@ -396,6 +396,3 @@ class BackgammonEnv(gym.Env):
             return True  # Opponent has checkers on the bar
 
         return False  # No checkers in home board or on the bar
-
-
-# do i need to check opponent bar???

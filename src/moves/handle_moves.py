@@ -50,7 +50,8 @@ def handle_non_doubles(
 
     # Flag to check if all second die moves are empty
     all_second_die_moves_empty = True
-
+    # Flag to check if a full move of length 2 is possible
+    full_move_of_length_2_possible = False
     # Check if any second die moves are possible after applying initial moves
     for initial_move in first_die_moves:
         resulting_board = execute_sub_move_on_board(
@@ -76,7 +77,7 @@ def handle_non_doubles(
             board=resulting_board, die_value=dice_order[1], player=player
         )
 
-        if all_second_die_moves_empty:
+        if all_second_die_moves_empty and not full_move_of_length_2_possible:
             # If no second moves are possible, record the initial move as a full move
             add_unique_board(
                 board=resulting_board,
@@ -102,6 +103,11 @@ def handle_non_doubles(
                     player=player,
                 )
 
+                full_move_of_length_2_possible = True
+
+    if not full_move_of_length_2_possible:
+        logger.warning("No full move of length 2 possible.")
+
 
 def handle_doubles(
     board: ImmutableBoard,
@@ -126,6 +132,8 @@ def handle_doubles(
     """
     # Generate all possible first moves using the die value
     single_die_moves = get_moves_with_one_die(board, die_value, player)
+    # Flag to check if a full move of length 4 is possible
+    full_move_of_length_4_possible = False
 
     for first_move in single_die_moves:
         # Apply the first move to get the resulting board state
@@ -134,7 +142,11 @@ def handle_doubles(
         # Generate all possible second moves using the same die value
         second_die_moves = get_moves_with_one_die(first_board, die_value, player)
 
-        if not second_die_moves and len(single_die_moves) == 1:
+        if (
+            not second_die_moves
+            and len(single_die_moves)
+            and not full_move_of_length_4_possible
+        ):
             # If no second moves are possible and only one first move exists, record it
             add_unique_board(
                 board=first_board,
@@ -151,7 +163,11 @@ def handle_doubles(
             # Generate all possible third moves using the same die value
             third_die_moves = get_moves_with_one_die(second_board, die_value, player)
 
-            if not third_die_moves and len(second_die_moves) == 1:
+            if (
+                not third_die_moves
+                and len(second_die_moves)
+                and not full_move_of_length_4_possible
+            ):
                 # If no third moves are possible and only one second move exists, record the sequence
                 add_unique_board(
                     board=second_board,
@@ -172,7 +188,11 @@ def handle_doubles(
                     third_board, die_value, player
                 )
 
-                if not fourth_die_moves and len(third_die_moves) == 1:
+                if (
+                    not fourth_die_moves
+                    and len(third_die_moves)
+                    and not full_move_of_length_4_possible
+                ):
                     # If no fourth moves are possible and only one third move exists, record the sequence
                     add_unique_board(
                         board=third_board,
@@ -196,6 +216,7 @@ def handle_doubles(
                         unique_boards=unique_boards,
                         player=player,
                     )
+                    full_move_of_length_4_possible = True
 
 
 def add_unique_board(

@@ -18,14 +18,18 @@ print(f"Using device: {device}")
 
 
 def train_agent():
+    print("Entered train_agent function.")
     global total_episodes, total_steps
     recent_rewards = []
     recent_wins = []
     episode_rewards = torch.zeros(NUM_ENVS, device=device)
     episode_lengths = torch.zeros(NUM_ENVS, device=device)
-
+    print(f"Starting training loop for {NUM_UPDATES} updates.")
     for update in tqdm(range(NUM_UPDATES), desc="Training Progress"):
+        print(f"Update {update}: Starting reset of environments.")
         observations = envs.reset()  # Already a tensor on device
+        print(f"Update {update}: Environments reset.")
+
         agent.memory = []  # Clear memory at the start of each update
 
         for step in range(T_HORIZON):
@@ -89,7 +93,7 @@ def train_agent():
         agent.writer.add_scalar("Stats/Entropy Coefficient", agent.entropy_coef, update)
 
         # Save model periodically
-        if update % 50 == 0 and update > 0:
+        if update % 25 == 0 and update > 0:
             filename = f"backgammon_ppo_update_{update}.pth"
             agent.save_model(filename=filename, to_s3=True)
             agent.save_model(filename="ppo_backgammon_s3.pth", to_s3=True)
