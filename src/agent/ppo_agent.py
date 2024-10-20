@@ -369,9 +369,6 @@ class BackgammonPPOAgent:
         # Clear memory after update
         self.memory = []
 
-        # Update entropy coefficient if using annealing
-        self.update_entropy_coef()
-
     def set_training_mode(self, training=True):
         """
         Sets the agent to training or evaluation mode.
