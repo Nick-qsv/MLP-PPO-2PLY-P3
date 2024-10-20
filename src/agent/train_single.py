@@ -21,14 +21,14 @@ def train_agent(env, agent, num_episodes=NUM_EPISODES, max_timesteps=MAX_TIMESTE
         observation = env.reset()
         done = False
         t = 0
+        episode_reward = 0  # Initialize episode reward
+        win = 0  # Initialize win flag (1 if Player1 wins, 0 otherwise)
 
         while not done and t < max_timesteps:
             t += 1
 
             # Get the current player
             current_player = env.current_player
-
-            # Collect the current board state (already in 'observation')
 
             # Check if there are any legal actions
             action_mask = env.action_mask
@@ -40,19 +40,24 @@ def train_agent(env, agent, num_episodes=NUM_EPISODES, max_timesteps=MAX_TIMESTE
             else:
                 # Select and perform an action
                 action = agent.select_action(observation, action_mask)
+                # Extract the scalar action from the array
+                action = action[0]
                 observation, reward, done, info = env.step(action)
 
                 # Update the last experience in agent's memory with reward and done
                 agent.memory[-1]["reward"] = reward
                 agent.memory[-1]["done"] = done
 
-            # Determine if PLAYER1 won and the game outcome
+            # Accumulate episode reward
+            episode_reward += reward.item() if reward is not None else 0
+
+            # Determine if PLAYER1 won
             if done and "winner" in info and "game_score" in info:
                 winner = info["winner"]
                 game_score = info["game_score"]
-                win = winner == Player.PLAYER1  # Check if PLAYER1 won
+                win = 1 if winner == Player.PLAYER1 else 0  # 1 if PLAYER1 won, else 0
 
-                # Determine the game outcome class
+                # Optionally, categorize the game outcome
                 if win:
                     if game_score == 1:
                         game_outcome = 0  # Win Normal
@@ -68,11 +73,13 @@ def train_agent(env, agent, num_episodes=NUM_EPISODES, max_timesteps=MAX_TIMESTE
                     elif game_score >= 3:
                         game_outcome = 5  # Lose Backgammon
 
-                # Optionally, log the game outcome or update statistics here
-
         # Add to the batch counter
         batch_counter += 1
-        agent.update_entropy_annealing()
+        agent.total_episodes += 1  # For entropy annealing
+
+        # Log metrics every 10 episodes
+        if (episode + 1) % 10 == 0:
+            agent.log_metrics(episode + 1, episode_reward, win)
 
         # Update the agent after collecting enough episodes
         if batch_counter % batch_episodes == 0:

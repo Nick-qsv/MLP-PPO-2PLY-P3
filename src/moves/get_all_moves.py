@@ -3,8 +3,10 @@ from src.board.immutable_board import ImmutableBoard
 from src.moves.move_types import FullMove
 from src.players import Player
 from src.moves.handle_moves import handle_non_doubles, handle_doubles
+from src.utils.decorators import profile, profiling_data
 
 
+@profile
 def get_all_possible_moves(
     player: Player, board: ImmutableBoard, roll_result: List[int]
 ) -> List[FullMove]:

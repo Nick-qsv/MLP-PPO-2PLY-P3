@@ -4,8 +4,10 @@ from src.players.player import Player
 from src.moves.move_types import FullMove, Position
 from src.board.immutable_board import ImmutableBoard, execute_full_move_on_board_copy
 from src.board.immutable_board import board_to_string
+from src.utils.decorators import profile, profiling_data
 
 
+@profile
 def generate_all_board_features(
     board: ImmutableBoard,
     current_player: Player,
@@ -73,6 +75,7 @@ def generate_all_board_features(
     return features_batch
 
 
+@profile
 def get_board_features_batch_from_tensors(
     board_tensors: torch.Tensor, current_player: Player
 ) -> torch.Tensor:

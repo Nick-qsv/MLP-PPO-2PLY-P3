@@ -13,18 +13,9 @@ from torch.amp import autocast, GradScaler
 from tensorboardX import SummaryWriter
 from torch.distributions import Categorical
 from src.agent.policy_network import BackgammonPolicyNetwork
-from src.agent.config import (
-    HIDDEN_SIZE,
-    LEARNING_RATE,
-    GAMMA,
-    EPS_CLIP,
-    NUM_EPOCHS,
-    VALUE_LOSS_COEF,
-    ENTROPY_COEF_START,
-    ENTROPY_COEF_END,
-    ENTROPY_ANNEAL_EPISODES,
-)
+from src.agent.config import *
 from datetime import datetime  # pylint: disable=import-error
+from src.utils.decorators import profile, profiling_data
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
@@ -144,6 +135,7 @@ class BackgammonPPOAgent:
         self.writer = SummaryWriter(log_dir=log_dir)
         print(f"Logging to TensorBoard at {log_dir}")
 
+    @profile
     def select_action(self, observations, action_masks=None):
         """
         Selects actions based on the current policy network and observations.
@@ -223,6 +215,7 @@ class BackgammonPPOAgent:
             returns.insert(0, R)
         return returns
 
+    @profile
     def update(self):
         """
         Optimizes the policy network using the collected experiences in memory.
@@ -369,6 +362,9 @@ class BackgammonPPOAgent:
         # Clear memory after update
         self.memory = []
 
+        # Update the entropy coefficient
+        self.update_entropy_coef()
+
     def set_training_mode(self, training=True):
         """
         Sets the agent to training or evaluation mode.
@@ -492,33 +488,46 @@ class BackgammonPPOAgent:
             self.load_model_local(filename, training)
 
     def log_metrics(self, episode, episode_reward, win):
-        # Calculate win rate
-        win_rate = (
-            sum(self.win_rates[-100:]) / min(len(self.win_rates), 100)
-            if self.win_rates
-            else 0.0
+        """
+        Logs metrics including win rate, average loss, and profiling information.
+        """
+        # Append the win result (1 if Player1 wins, 0 otherwise)
+        self.win_rates.append(win)
+
+        # Calculate win rate over the last 10 episodes
+        if len(self.win_rates) > 0:
+            win_rate = sum(self.win_rates[-10:]) / min(len(self.win_rates), 10)
+        else:
+            win_rate = 0  # or another default value if no data
+
+        # Calculate average loss over the last 10 episodes
+        if len(self.losses) > 0:
+            avg_loss = sum(self.losses[-10:]) / min(len(self.losses), 10)
+        else:
+            avg_loss = 0  # or another default value if no data
+
+        # Print the metrics
+        print(
+            f"*** Episode {episode}/{NUM_EPISODES} | "
+            f"Reward: {episode_reward:.4f} | "
+            f"Loss: {avg_loss:.4f} | "
+            f"Win Rate: {win_rate*100:.2f}% ***"
         )
-
-        # Check if losses are available before calculating average loss
-        if self.losses:
-            avg_loss = sum(self.losses[-100:]) / min(len(self.losses), 100)
-        else:
-            avg_loss = None  # Default to None or any placeholder like 0 or 'N/A'
-
-        # Print out the metrics
-        if avg_loss is not None:
-            print(
-                f"*** Episode {episode} | Reward: {episode_reward} | Loss: {avg_loss:.4f} | Win Rate: {win_rate*100:.2f}% ***"
-            )
-        else:
-            print(
-                f"*** Episode {episode} | Reward: {episode_reward} | Loss: N/A | Win Rate: {win_rate*100:.2f}% ***"
-            )
 
         # Log win rate to TensorBoard at reduced frequency
         if self.total_episodes % self.LOG_INTERVAL == 0:
             self.writer.add_scalar("Win Rate", win_rate, self.total_episodes)
 
-        # Log loss to TensorBoard only if available
-        if avg_loss is not None:
-            self.writer.add_scalar("Loss/Avg Loss", avg_loss, self.total_episodes)
+        # Print profiling information
+        print("Profiling Information:")
+        for func_name, data in profiling_data.items():
+            total_time = data["total_time"]
+            call_count = data["call_count"]
+            avg_time = total_time / call_count if call_count > 0 else 0.0
+            print(
+                f"Function {func_name!r} called {call_count} times. "
+                f"Total time: {total_time:.6f} seconds. "
+                f"Average time per call: {avg_time:.6f} seconds."
+            )
+        # Reset profiling data
+        profiling_data.clear()
