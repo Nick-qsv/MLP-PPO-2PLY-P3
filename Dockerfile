@@ -46,4 +46,4 @@ RUN python3 -m pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["python3", "src/agent/train.py"]
+CMD ["python3", "src/agent/train_single.py"]

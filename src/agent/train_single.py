@@ -99,6 +99,11 @@ def train_agent(env, agent, num_episodes=NUM_EPISODES, max_timesteps=MAX_TIMESTE
 
         # Entropy coefficient is updated within the agent's update method
 
+        # Save model periodically
+        if episode % 100_000 == 0 and episode > 0:
+            filename = f"backgammon_ppo_episode_{episode}.pth"
+            agent.save_model(filename=filename, to_s3=True)
+
 
 if __name__ == "__main__":
     env = BackgammonEnv(device=device)
